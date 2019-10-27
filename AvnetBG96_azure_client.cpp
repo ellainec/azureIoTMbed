@@ -78,7 +78,7 @@ typedef struct IoTDevice_t {
   #define ENV_SENSOR "NO"
 #endif
 
-static const char* connectionString = "HostName=XXXX;DeviceId=xxxx;SharedAccessKey=xxxx";
+static const char* connectionString = "HostName=iotc-3ba337e8-74be-4fe6-8352-fa5b129733ae.azure-devices.net;DeviceId=579244a3-1b7c-43b9-94ea-0bd3bb96ebb0;SharedAccessKey=mrxTBlEKcnWlWtROvycCuw5Mbog2vi9jlQEliqpPNN8=";
  
 static const char* deviceId         = "xxxx"; /*must match the one on connectionString*/
 
@@ -263,6 +263,12 @@ char* makeMessage(IoTDevice* iotDev)
     strftime(buffer,80,"%a %F %X",ptm);
     iotDev->TOD = buffer;
     int c = (strstr(buffer,":")-buffer) - 2;
+    mbed_stats_cpu_t stats;
+    mbed_stats_cpu_get(&stats);
+    printf("debug mode");
+    printf("Uptime: %llu ", stats.uptime / 1000);
+    printf("Sleep time: %llu ", stats.sleep_time / 1000);
+    printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
     printf("Send IoTHubClient Message@%s - ",&buffer[c]);
     snprintf(ptr, msg_size, IOTDEVICE_MSG_FORMAT,
                             iotDev->ObjectName,
@@ -518,7 +524,7 @@ void azure_task(void)
                 printf("\n");
                 }
 #endif 
-        ThisThread::sleep_for(5000);  //in msec
+        ThisThread::sleep_for(10000);  //in msec
         }
     free(iotDev);
     IoTHubClient_LL_Destroy(iotHubClientHandle);
