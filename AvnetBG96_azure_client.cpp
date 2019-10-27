@@ -61,26 +61,14 @@ typedef struct IoTDevice_t {
 
 /* initialize the expansion board && sensors */
 
-#if MBED_CONF_APP_IKSVERSION == 2
-  #define ENV_SENSOR "IKS01A2"
-  #include "XNucleoIKS01A2.h"
-  static HTS221Sensor   *hum_temp;
-  static LSM6DSLSensor  *acc_gyro;
-  static LPS22HBSensor  *pressure;
-#elif MBED_CONF_APP_IKSVERSION == 1
-  #define ENV_SENSOR "IKS01A1"
-  #include "x_nucleo_iks01a1.h"
-  static HumiditySensor *hum;
-  static TempSensor     *temp;
-  static PressureSensor *pressure;
-  static GyroSensor     *acc_gyro;
-#else
-  #define ENV_SENSOR "NO"
-#endif
+#define ENV_SENSOR "IKS01A2"
+#include "XNucleoIKS01A2.h"
+static HTS221Sensor   *hum_temp;
+static LSM6DSLSensor  *acc_gyro;
+static LPS22HBSensor  *pressure;
+
 
 static const char* connectionString = "HostName=iotc-3ba337e8-74be-4fe6-8352-fa5b129733ae.azure-devices.net;DeviceId=579244a3-1b7c-43b9-94ea-0bd3bb96ebb0;SharedAccessKey=mrxTBlEKcnWlWtROvycCuw5Mbog2vi9jlQEliqpPNN8=";
- 
-static const char* deviceId         = "xxxx"; /*must match the one on connectionString*/
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
@@ -88,76 +76,11 @@ static const char* deviceId         = "xxxx"; /*must match the one on connection
 Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread");
 static void azure_task(void);
 
-Thread LED_thread(osPriorityNormal, 256, NULL, "LED_thread");
-static void LED_task(void);
-
-/* LED Management */
-DigitalOut   RED_led(LED1);
-DigitalOut   BLUE_led(LED2);
-DigitalOut   GREEN_led(LED3);
-
-const int    blink_interval = 500; //msec
-int          RED_state, BLUE_state, GREEN_state;
 
 /* create the GPS elements for example program */
 gps_data gdata; 
 bg96_gps gps;   
 
-#define GREEN       4  //0 0100 GREEN
-#define BLUE        2  //0 0010
-#define RED         1  //0 0001 RED
-
-#define LED_ON      8  //0 1xxx
-#define LED_BLINK  16  //1 xxxx
-#define LED_OFF     0  //0 0xxx
-
-#define SET_LED(l,s) (l##_led = ((l##_state=s)&LED_ON)? 1: 0)
-
-//
-// The LED thread simply manages the LED's on an on-going basis
-//
-static void LED_task(void)
-{
-    while (true) {
-        if( GREEN_state & LED_OFF ) 
-            GREEN_led = 0;
-        else if( GREEN_state & LED_ON ) 
-            GREEN_led = 1;
-        else if( GREEN_state & LED_BLINK ) 
-            GREEN_led = !GREEN_led;
-
-        if( BLUE_state & LED_OFF ) 
-            BLUE_led = 0;
-        else if( BLUE_state & LED_ON ) 
-            BLUE_led = 1;
-        else if( BLUE_state & LED_BLINK ) 
-            BLUE_led = !BLUE_led;
-
-        if( RED_state & LED_OFF ) 
-            RED_led = 0;
-        else if( RED_state & LED_ON ) 
-            RED_led = 1;
-        else if( RED_state & LED_BLINK ) 
-            RED_led = !RED_led;
-
-        ThisThread::sleep_for(blink_interval);  //in msec
-        }
-}
-
-
-/* Button callbacks for a press and release (light an LED) */
-static bool button_pressed = false;
-void ub_press(void)
-{
-    button_pressed = true;
-    SET_LED(RED,LED_ON);
-}
-
-void ub_release(int x)
-{
-    button_pressed = false;
-    SET_LED(RED,LED_OFF);
-}
 
 
 //
@@ -171,18 +94,16 @@ static int tilt_event;
 void mems_int1(void)
 {
     tilt_event++;
-    SET_LED(BLUE,LED_BLINK);
 }
 
 void mems_init(void)
 {
-#if MBED_CONF_APP_IKSVERSION == 2
     acc_gyro->attach_int1_irq(&mems_int1);  // Attach callback to LSM6DSL INT1
     hum_temp->enable();                     // Enable HTS221 enviromental sensor
     pressure->enable();                     // Enable barametric pressure sensor
     acc_gyro->enable_x();                   // Enable LSM6DSL accelerometer
     acc_gyro->enable_tilt_detection();      // Enable Tilt Detection
-#endif
+
 }
 
 //
@@ -219,25 +140,17 @@ int main(void)
     gps.gpsLocation(&gdata);
     printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
-#if MBED_CONF_APP_IKSVERSION == 2
+
   XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
   hum_temp = mems_expansion_board->ht_sensor;
   acc_gyro = mems_expansion_board->acc_gyro;
   pressure = mems_expansion_board->pt_sensor;
-#elif MBED_CONF_APP_IKSVERSION == 1
-  X_NUCLEO_IKS01A1 *mems_expansion_board = X_NUCLEO_IKS01A1::Instance(I2C_SDA, I2C_SCL);
-  hum      = mems_expansion_board->ht_sensor;
-  temp     = mems_expansion_board->ht_sensor;
-  pressure = mems_expansion_board->pt_sensor;
-  acc_gyro = mems_expansion_board->GetGyroscope();
-#endif
+
 
     mems_init();
-    LED_thread.start(LED_task);
     azure_client_thread.start(azure_task);
 
     azure_client_thread.join();
-    LED_thread.terminate();
     platform_deinit();
     printf(" - - - - - - - ALL DONE - - - - - - - \n");
     return 0;
@@ -265,7 +178,7 @@ char* makeMessage(IoTDevice* iotDev)
     int c = (strstr(buffer,":")-buffer) - 2;
     mbed_stats_cpu_t stats;
     mbed_stats_cpu_get(&stats);
-    printf("debug mode");
+    printf("release mode");
     printf("Uptime: %llu ", stats.uptime / 1000);
     printf("Sleep time: %llu ", stats.sleep_time / 1000);
     printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
@@ -326,15 +239,12 @@ IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
 
     printf("Receiving message: '%s'\r\n", temp);
     if( !strcmp(temp,"led-blink") ) {
-        SET_LED(GREEN,LED_BLINK);
         printf("start blinking\n");
         }
     if( !strcmp(temp,"led-on") ) {
-        SET_LED(GREEN,LED_ON);
         printf("turn on\n");
         }
     if( !strcmp(temp,"led-off") ) {
-        SET_LED(GREEN,LED_OFF);
         printf("turn off\n");
         }
 
@@ -352,12 +262,6 @@ void azure_task(void)
     int  k;
     int  msg_sent=1;
 
-    Button user_button(BUTTON1,Button::MBED_CONF_APP_BUTTON_ACTIVE_STATE, ub_release);
-    user_button.setButton_press_cb(ub_press);
-
-    SET_LED(RED,LED_ON);
-    SET_LED(BLUE,LED_ON);
-    SET_LED(GREEN,LED_ON);
 
     /* Setup IoTHub client configuration */
 #ifdef IOTHUBTRANSPORTHTTP_H
@@ -417,10 +321,6 @@ void azure_task(void)
     iotDev->ButtonPress     = 0;
     memset(iotDev->gpsdate,0x00,7);
 
-    SET_LED(RED,LED_OFF);
-    SET_LED(BLUE,LED_OFF);
-    SET_LED(GREEN,LED_OFF);
-
     while (runTest) {
         char*  msg;
         size_t msgSize;
@@ -431,19 +331,11 @@ void azure_task(void)
         iotDev->gpstime = gdata.utc;
         memcpy(iotDev->gpsdate, gdata.date, 7);
 
-#if MBED_CONF_APP_IKSVERSION == 2
+
         hum_temp->get_temperature(&gtemp);           // get Temp
         hum_temp->get_humidity(&ghumid);             // get Humidity
         pressure->get_pressure(&gpress);             // get pressure
-#elif MBED_CONF_APP_IKSVERSION == 1
-        CALL_METH(temp, get_temperature, &gtemp, 0.0f);
-        CALL_METH(hum, get_humidity, &ghumid, 0.0f);
-        CALL_METH(pressure, get_pressure, &gpress, 0.0f);
-#else
-        gtemp  = 0.0;
-        ghumid = 0.0;
-        gpress = 0.0;
-#endif
+
 
         iotDev->Temperature = CTOF(gtemp);
         iotDev->Humidity    = (int)ghumid;
@@ -452,36 +344,13 @@ void azure_task(void)
         if( tilt_event ) {
             tilt_event = 0;
             iotDev->Tilt |= 1;
-            }
-
-        iotDev->ButtonPress = button_pressed?1:0;
-        if( user_button.chkButton_press(&k) ) {
-            if( k > 3000 ) {
-                printf("User Requested Termination (held button for %d msec), exiting.\n",k);
-                runTest = false;
-                }
-            else{
-                iotDev->ButtonPress = 1;
-                tilt_detection_enabled = !tilt_detection_enabled;
-#if MBED_CONF_APP_IKSVERSION == 2
-                if( !tilt_detection_enabled ) {
-                    acc_gyro->disable_tilt_detection();
-                    iotDev->Tilt &= 1;
-                    }
-                else{
-                    acc_gyro->enable_tilt_detection();
-                    iotDev->Tilt |= 2;
-                    }
-#endif
-                }
-            }
+        }
 
         printf("(%04d)",msg_sent++);
         msg = makeMessage(iotDev);
         msgSize = strlen(msg);
         sendMessage(iotHubClientHandle, msg, msgSize);
         free(msg);
-        SET_LED(BLUE,LED_OFF);
         iotDev->Tilt &= 0x2;
         iotDev->ButtonPress = 0;
 
