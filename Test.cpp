@@ -12,6 +12,7 @@ DigitalOut led1(LED3);
 
 int main() {
     while (1) {
+        printf("with tolchain");
         printf("Deep sleep allowed: %i\r\n", sleep_manager_can_deep_sleep());
         printf("going to deep sleeeeep! \n");
         ThisThread::sleep_for(10000);
