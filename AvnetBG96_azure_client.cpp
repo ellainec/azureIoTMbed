@@ -112,47 +112,56 @@ void mems_init(void)
 
 int main(void)
 {
-    printf("\r\n");
-    printf("     ****\r\n");
-    printf("    **  **     Azure IoTClient Example, version %s\r\n", APP_VERSION);
-    printf("   **    **    by AVNET\r\n");
-    printf("  ** ==== **   \r\n");
-    printf("\r\n");
-    printf("The example program interacts with Azure IoTHub sending \r\n");
-    printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
-    printf("->using %s Environmental Sensor\r\n", ENV_SENSOR);
-#ifdef IOTHUBTRANSPORTHTTP_H
-    printf("->using HTTPS Transport Protocol\r\n");
-#else
-    printf("->using MQTT Transport Protocol\r\n");
-#endif
-    printf("\r\n");
+    while(true) {
+        printf("hello!");
+        ThisThread::sleep_for(10000);
+        mbed_stats_cpu_t stats;
+        mbed_stats_cpu_get(&stats);
+        printf("release mode");
+        printf("Uptime: %llu ", stats.uptime / 1000);
+        printf("Sleep time: %llu ", stats.sleep_time / 1000);
+        printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
+    }
+    // printf("\r\n");
+    // printf("     ****\r\n");
+    // printf("    **  **     Azure IoTClient Example, version %s\r\n", APP_VERSION);
+    // printf("   **    **    by AVNET\r\n");
+    // printf("  ** ==== **   \r\n");
+    // printf("\r\n");
+    // printf("The example program interacts with Azure IoTHub sending \r\n");
+    // printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
+    // printf("->using %s Environmental Sensor\r\n", ENV_SENSOR);
+    // #ifdef IOTHUBTRANSPORTHTTP_H
+    //     printf("->using HTTPS Transport Protocol\r\n");
+    // #else
+    //     printf("->using MQTT Transport Protocol\r\n");
+    // #endif
+    // printf("\r\n");
 
-    if (platform_init() != 0) {
-       printf("Error initializing the platform\r\n");
-       return -1;
-       }
+    // if (platform_init() != 0) {
+    //    printf("Error initializing the platform\r\n");
+    //    return -1;
+    //    }
 
-    printf("[ start GPS ] ");
-    gps.gpsPower(true);
-    printf("Successful.\r\n[get GPS loc] ");
-    fflush(stdout);
-    gps.gpsLocation(&gdata);
-    printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
-
-
-  XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
-  hum_temp = mems_expansion_board->ht_sensor;
-  acc_gyro = mems_expansion_board->acc_gyro;
-  pressure = mems_expansion_board->pt_sensor;
+    // printf("[ start GPS ] ");
+    // gps.gpsPower(true);
+    // printf("Successful.\r\n[get GPS loc] ");
+    // fflush(stdout);
+    // gps.gpsLocation(&gdata);
+    // printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
 
-    mems_init();
-    azure_client_thread.start(azure_task);
+    // XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
+    // hum_temp = mems_expansion_board->ht_sensor;
+    // acc_gyro = mems_expansion_board->acc_gyro;
+    // pressure = mems_expansion_board->pt_sensor;
 
-    azure_client_thread.join();
-    platform_deinit();
-    printf(" - - - - - - - ALL DONE - - - - - - - \n");
+    // mems_init();
+    // azure_client_thread.start(azure_task);
+
+    // azure_client_thread.join();
+    // platform_deinit();
+    // printf(" - - - - - - - ALL DONE - - - - - - - \n");
     return 0;
 }
 
