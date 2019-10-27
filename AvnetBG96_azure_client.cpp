@@ -4,6 +4,7 @@
 //#define USE_MQTT
 
 #include <stdlib.h>
+#include "rtos.h"
 #include "mbed.h"
 
 #include "jsondecoder.h"
@@ -44,29 +45,34 @@ int          RED_state, BLUE_state, GREEN_state;
 //
 static void LED_task(void)
 {
+    printf("starting LED tastk");
     while (true) {
-        if( GREEN_state & LED_OFF ) 
-            GREEN_led = 0;
-        else if( GREEN_state & LED_ON ) 
-            GREEN_led = 1;
-        else if( GREEN_state & LED_BLINK ) 
-            GREEN_led = !GREEN_led;
+        printf("red on");
+        RED_led=1;
+        printf("red off");
 
-        if( BLUE_state & LED_OFF ) 
-            BLUE_led = 0;
-        else if( BLUE_state & LED_ON ) 
-            BLUE_led = 1;
-        else if( BLUE_state & LED_BLINK ) 
-            BLUE_led = !BLUE_led;
+        // if( GREEN_state & LED_OFF ) 
+        //     GREEN_led = 0;
+        // else if( GREEN_state & LED_ON ) 
+        //     GREEN_led = 1;
+        // else if( GREEN_state & LED_BLINK ) 
+        //     GREEN_led = !GREEN_led;
 
-        if( RED_state & LED_OFF ) 
-            RED_led = 0;
-        else if( RED_state & LED_ON ) 
-            RED_led = 1;
-        else if( RED_state & LED_BLINK ) 
-            RED_led = !RED_led;
+        // if( BLUE_state & LED_OFF ) 
+        //     BLUE_led = 0;
+        // else if( BLUE_state & LED_ON ) 
+        //     BLUE_led = 1;
+        // else if( BLUE_state & LED_BLINK ) 
+        //     BLUE_led = !BLUE_led;
 
-        ThisThread::sleep_for(blink_interval);  //in msec
+        // if( RED_state & LED_OFF ) 
+        //     RED_led = 0;
+        // else if( RED_state & LED_ON ) 
+        //     RED_led = 1;
+        // else if( RED_state & LED_BLINK ) 
+        //     RED_led = !RED_led;
+
+        ThisThread::sleep_for(5000);  //in msec
         }
 }
 
@@ -91,21 +97,20 @@ void ub_release(int x)
 // The main routine simply prints a banner, initializes the system
 // starts the worker threads and waits for a termination (join)
 
-int main(void)
-{
-    printf("\r\n");
-    printf("     ****\r\n");
-    printf("    **  **     Azure IoTClient Example, version %s\r\n");
-    printf("   **    **    by AVNET\r\n");
-    printf("  ** ==== **   \r\n");
-    printf("\r\n");
-    printf("The example program interacts with Azure IoTHub sending \r\n");
-    printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
-    printf("->using %s Environmental Sensor\r\n");
+// int main(void)
+// {
+//     printf("\r\n");
+//     printf("     ****\r\n");
+//     printf("    **  **     Azure IoTClient Example, version \r\n");
+//     printf("   **    **    by AVNET\r\n");
+//     printf("  ** ==== **   \r\n");
+//     printf("\r\n");
+//     printf("The example program interacts with Azure IoTHub sending \r\n");
+//     printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
+//     printf("->using Environmental Sensor\r\n");
 
-    LED_thread.start(LED_task);
-    LED_thread.join();
+//     LED_thread.start(LED_task);
 
-    printf(" - - - - - - - ALL DONE - - - - - - - \n");
-    return 0;
-}
+//     printf(" - - - - - - - ALL DONE - - - - - - - \n");
+//     return 0;
+// }

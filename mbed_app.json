@@ -2,7 +2,8 @@
     "macros": [
         "DEFAULT_APN=\"m2m-east.telus.iot\"",
         "NDEBUG=1",
-        "BG96_LIBRARY_READ_TIMEOUTMS=30000"
+        "BG96_LIBRARY_READ_TIMEOUTMS=30000",
+        "MBED_SLEEP_TRACING_ENABLED"
     ],
     "config": {
         "config_comments": "Add the to the macros section above to enable memory stats output",
@@ -41,8 +42,9 @@
     "target_overrides": {
         "*": {
             "platform.stdio-convert-newlines": true,
-            "platform.stdio-baud-rate": 115200,
-            "platform.stdio-flush-at-exit": false
+            "platform.stdio-baud-rate": 9600,
+            "platform.stdio-flush-at-exit": false,
+            "platform.cpu-stats-enabled": 1
          },
          "K64F": {
             "button_active_state": "ActiveLow"
