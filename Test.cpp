@@ -12,10 +12,8 @@ DigitalOut led1(LED3);
 
 int main() {
     while (1) {
-        printf("with toolchain in debug");
-        printf("Deep sleep allowed: %i\r\n", sleep_manager_can_deep_sleep());
-        printf("going to deep sleeeeep! \n");
-        ThisThread::sleep_for(10000);
+        printf("with toolchain baud rate");
+        ThisThread::sleep_for(5000);
         mbed_stats_cpu_t stats;
        mbed_stats_cpu_get(&stats);
        printf("Uptime: %llu ", stats.uptime / 1000);
