@@ -5,7 +5,11 @@
 
 #include <stdlib.h>
 #include "mbed.h"
+#ifdef USE_MQTT
+#include "iothubtransportmqtt.h"
+#else
 #include "iothubtransporthttp.h"
+#endif
 #include "iothub_client_core_common.h"
 #include "iothub_client_ll.h"
 #include "azure_c_shared_utility/platform.h"
@@ -117,6 +121,43 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
     IoTHubMessage_Destroy(messageHandle);
 }
 
+IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
+    IOTHUB_MESSAGE_HANDLE message, 
+    void *userContextCallback)
+{
+    const unsigned char *buffer = NULL;
+    size_t size = 0;
+
+    if (IOTHUB_MESSAGE_OK != IoTHubMessage_GetByteArray(message, &buffer, &size))
+    {
+        return IOTHUBMESSAGE_ABANDONED;
+    }
+
+    // message needs to be converted to zero terminated string
+    char * temp = (char *)malloc(size + 1);
+    if (temp == NULL)
+    {
+        return IOTHUBMESSAGE_ABANDONED;
+    }
+    strncpy(temp, (char*)buffer, size);
+    temp[size] = '\0';
+
+    printf("Receiving message: '%s'\r\n", temp);
+    if( !strcmp(temp,"led-blink") ) {
+        printf("start blinking\n");
+        }
+    if( !strcmp(temp,"led-on") ) {
+        printf("turn on\n");
+        }
+    if( !strcmp(temp,"led-off") ) {
+        printf("turn off\n");
+        }
+
+    free(temp);
+
+    return IOTHUBMESSAGE_ACCEPTED;
+}
+
 void azure_task(void)
 {
     bool button_press = false, runTest = true;
@@ -128,8 +169,11 @@ void azure_task(void)
 
 
     /* Setup IoTHub client configuration */
-    IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
-
+    #ifdef IOTHUBTRANSPORTHTTP_H
+        IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
+    #else
+        IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, MQTT_Protocol);
+    #endif
 
     if (iotHubClientHandle == NULL) {
         printf("Failed on IoTHubClient_Create\r\n");
@@ -140,22 +184,29 @@ void azure_task(void)
     if (IoTHubClient_LL_SetOption(iotHubClientHandle, "TrustedCerts", certificates) != IOTHUB_CLIENT_OK)
         printf("failure to set option \"TrustedCerts\"\r\n");
 
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
-        printf("failure to set option \"product_info\"\r\n");
+    #if MBED_CONF_APP_TELUSKIT == 1
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
+            printf("failure to set option \"product_info\"\r\n");
+    #endif
 
-    // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
-    // For more information, see:
-    //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
+    #ifdef IOTHUBTRANSPORTHTTP_H
+        // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
+        // For more information, see:
+        //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
 
-    unsigned int minimumPollingTime = 9;
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
-        printf("failure to set option \"MinimumPollingTime\"\r\n");
+        unsigned int minimumPollingTime = 9;
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
+            printf("failure to set option \"MinimumPollingTime\"\r\n");
+    #endif
 
     IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
     if (iotDev == NULL) {
         printf("Failed to malloc space for IoTDevice\r\n");
         return;
-    }
+        }
+
+    // set C2D and device method callback
+    IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
 
     setUpIotStruct(iotDev);
 
