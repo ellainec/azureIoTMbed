@@ -5,9 +5,8 @@
                    "-fmessage-length=0", "-fno-exceptions", "-fno-builtin",
                    "-ffunction-sections", "-fdata-sections", "-funsigned-char",
                    "-MMD", "-fno-delete-null-pointer-checks", "-Wno-type-limits",
-                   "-fomit-frame-pointer", "-Os", "-g3",
-                   "-DMBED_TRAP_ERRORS_ENABLED=1", "-Ddont_use_uploadtoblob=ON",
-                   "-DREFCOUNT_USE_GNU_C_ATOMIC"
+                   "-fomit-frame-pointer", "-Os", "-g1", "-DNDEBUG",
+                   "-Ddont_use_uploadtoblob=ON","-DREFCOUNT_USE_GNU_C_ATOMIC"
                   ],
         "asm": ["-x", "assembler-with-cpp"],
         "c": ["-std=c99"],
@@ -16,36 +15,5 @@
                "-Wl,--wrap,_free_r", "-Wl,--wrap,_realloc_r", "-Wl,--wrap,_memalign_r",
                "-Wl,--wrap,_calloc_r", "-Wl,--wrap,exit", "-Wl,--wrap,atexit",
                "-Wl,-n"]
-    },
-    "ARM": {
-        "common": ["-c", "--gnu", "-Otime", "--split_sections",
-                   "--apcs=interwork", "--brief_diagnostics", "--restrict",
-                   "--multibyte_chars", "-O0", "-g",
-                   "-DMBED_TRAP_ERRORS_ENABLED=1", "-DARM_ONLINE_COMPILER"],
-        "asm": [],
-        "c": ["--md", "--no_depend_system_headers", "--c99", "-D__ASSERT_MSG"],
-        "cxx": ["--cpp", "--no_rtti", "--no_vla"],
-        "ld": []
-    },
-    "uARM": {
-        "common": ["-c", "--gnu", "-Otime", "--split_sections",
-                   "--apcs=interwork", "--brief_diagnostics", "--restrict",
-                   "--multibyte_chars", "-O0", "-D__MICROLIB", "-g",
-                   "--library_type=microlib", "-DMBED_RTOS_SINGLE_THREAD",
-                   "-DMBED_TRAP_ERRORS_ENABLED=1"],
-        "asm": [],
-        "c": ["--md", "--no_depend_system_headers", "--c99", "-D__ASSERT_MSG"],
-        "cxx": ["--cpp", "--no_rtti", "--no_vla"],
-        "ld": ["--library_type=microlib"]
-    },
-    "IAR": {
-        "common": [
-            "--no_wrap_diagnostics",  "-e",
-            "--diag_suppress=Pa050,Pa084,Pa093,Pa082", "-On", "-r",
-            "-DMBED_TRAP_ERRORS_ENABLED=1"],
-        "asm": [],
-        "c": ["--vla"],
-        "cxx": ["--guard_calls", "--no_static_destruction"],
-        "ld": ["--skip_dynamic_initialization", "--threaded_lib"]
     }
 }
