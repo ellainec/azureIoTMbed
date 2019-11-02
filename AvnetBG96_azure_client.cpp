@@ -39,7 +39,7 @@ static void azure_task(void);
 /* create the GPS elements for example program */
 gps_data gdata; 
 bg96_gps gps;   
-
+BG96Interface* bg96Interface;
 
 
 //
@@ -70,6 +70,7 @@ void startUp(void) {
        printf("Error initializing the platform\r\n");
     return;
     }
+    bg96Interface = easy_get_netif(true);
     printf("[ start GPS ] ");
     gps.gpsPower(true);
     printf("Successful.\r\n[get GPS loc] ");
@@ -167,6 +168,12 @@ void azure_task(void)
         printf("Uptime: %llu ", stats.uptime / 1000);
         printf("Sleep time: %llu ", stats.sleep_time / 1000);
         printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
+
+        if (bg96Interface->get_ip_address() == NULL) {
+            printf("not connected yet!");
+        } else {
+            printf("connected yay!");
+        }
         char*  msg;
         size_t msgSize;
 

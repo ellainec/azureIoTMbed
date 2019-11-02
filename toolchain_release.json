@@ -5,7 +5,7 @@
                    "-fmessage-length=0", "-fno-exceptions", "-fno-builtin",
                    "-ffunction-sections", "-fdata-sections", "-funsigned-char",
                    "-MMD", "-fno-delete-null-pointer-checks", "-Wno-type-limits",
-                   "-fomit-frame-pointer", "-Os", "-g3", "-DMBED_RELEASE", 
+                   "-fomit-frame-pointer", "-Os", "-g3",
                    "-DMBED_TRAP_ERRORS_ENABLED=1", "-Ddont_use_uploadtoblob=ON",
                    "-DREFCOUNT_USE_GNU_C_ATOMIC"
                   ],
@@ -20,7 +20,7 @@
     "ARM": {
         "common": ["-c", "--gnu", "-Otime", "--split_sections",
                    "--apcs=interwork", "--brief_diagnostics", "--restrict",
-                   "--multibyte_chars", "-O0", "-g", "-DMBED_DEBUG",
+                   "--multibyte_chars", "-O0", "-g",
                    "-DMBED_TRAP_ERRORS_ENABLED=1", "-DARM_ONLINE_COMPILER"],
         "asm": [],
         "c": ["--md", "--no_depend_system_headers", "--c99", "-D__ASSERT_MSG"],
@@ -31,7 +31,7 @@
         "common": ["-c", "--gnu", "-Otime", "--split_sections",
                    "--apcs=interwork", "--brief_diagnostics", "--restrict",
                    "--multibyte_chars", "-O0", "-D__MICROLIB", "-g",
-                   "--library_type=microlib", "-DMBED_RTOS_SINGLE_THREAD", "-DMBED_DEBUG",
+                   "--library_type=microlib", "-DMBED_RTOS_SINGLE_THREAD",
                    "-DMBED_TRAP_ERRORS_ENABLED=1"],
         "asm": [],
         "c": ["--md", "--no_depend_system_headers", "--c99", "-D__ASSERT_MSG"],
@@ -41,7 +41,7 @@
     "IAR": {
         "common": [
             "--no_wrap_diagnostics",  "-e",
-            "--diag_suppress=Pa050,Pa084,Pa093,Pa082", "-On", "-r", "-DMBED_DEBUG",
+            "--diag_suppress=Pa050,Pa084,Pa093,Pa082", "-On", "-r",
             "-DMBED_TRAP_ERRORS_ENABLED=1"],
         "asm": [],
         "c": ["--vla"],
