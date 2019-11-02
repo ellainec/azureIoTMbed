@@ -5,9 +5,8 @@
                    "-fmessage-length=0", "-fno-exceptions", "-fno-builtin",
                    "-ffunction-sections", "-fdata-sections", "-funsigned-char",
                    "-MMD", "-fno-delete-null-pointer-checks", "-Wno-type-limits",
-                   "-fomit-frame-pointer", "-Os", "-g3", "-DMBED_RELEASE", 
-                   "-DMBED_TRAP_ERRORS_ENABLED=1", "-Ddont_use_uploadtoblob=ON",
-                   "-DREFCOUNT_USE_GNU_C_ATOMIC"
+                   "-fomit-frame-pointer", "-Os", "-g1", "-DNDEBUG",
+                   "-Ddont_use_uploadtoblob=ON","-DREFCOUNT_USE_GNU_C_ATOMIC"
                   ],
         "asm": ["-x", "assembler-with-cpp"],
         "c": ["-std=c99"],
