@@ -17,51 +17,15 @@
 #include "jsondecoder.h"
 #include "bg96gps.hpp"
 #include "button.hpp"
+#include "azure_message_helper.h"
 
-#define APP_VERSION "1.2"
 #define IOT_AGENT_OK CODEFIRST_OK
 
 #include "azure_certs.h"
-
-/* The following is the message we will be sending to Azure */
-typedef struct IoTDevice_t {
-    char* ObjectName;
-    char* ObjectType;
-    char* Version;
-    char* ReportingDevice;
-    float lat;
-    float lon;
-    float gpstime;
-    char  gpsdate[7];
-    float Temperature;
-    int   Humidity;
-    int   Pressure;
-    int   Tilt;
-    int   ButtonPress;
-    char* TOD;
-    } IoTDevice;
-
-#define IOTDEVICE_MSG_FORMAT       \
-   "{"                             \
-     "\"ObjectName\":\"%s\","      \
-     "\"ObjectType\":\"%s\","      \
-     "\"Version\":\"%s\","         \
-     "\"ReportingDevice\":\"%s\"," \
-     "\"Latitude\":\"%6.3f\","     \
-     "\"Longitude\":\"%6.3f\","    \
-     "\"GPSTime\":\"%6.0f\","      \
-     "\"GPSDate\":\"%s\","         \
-     "\"Temperature\":\"%.02f\","  \
-     "\"Humidity\":\"%d\","        \
-     "\"Pressure\":\"%d\","        \
-     "\"Tilt\":\"%d\","            \
-     "\"ButtonPress\":\"%d\","     \
-     "\"TOD\":\"%s UTC\""          \
-   "}"                             
+                      
 
 /* initialize the expansion board && sensors */
 
-#define ENV_SENSOR "IKS01A2"
 #include "XNucleoIKS01A2.h"
 static HTS221Sensor   *hum_temp;
 static LSM6DSLSensor  *acc_gyro;
@@ -112,21 +76,7 @@ void mems_init(void)
 
 int main(void)
 {
-    printf("\r\n");
-    printf("     ****\r\n");
-    printf("    **  **     Azure IoTClient Example, version %s\r\n", APP_VERSION);
-    printf("   **    **    by AVNET\r\n");
-    printf("  ** ==== **   \r\n");
-    printf("\r\n");
-    printf("The example program interacts with Azure IoTHub sending \r\n");
-    printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
-    printf("->using %s Environmental Sensor\r\n", ENV_SENSOR);
-    #ifdef IOTHUBTRANSPORTHTTP_H
-        printf("->using HTTPS Transport Protocol\r\n");
-    #else
-        printf("->using MQTT Transport Protocol\r\n");
-    #endif
-    printf("\r\n");
+    printStartMessage();
 
     if (platform_init() != 0) {
        printf("Error initializing the platform\r\n");
@@ -155,50 +105,6 @@ int main(void)
     return 0;
 }
 
-//
-// This function sends the actual message to azure
-//
-
-// *************************************************************
-//  AZURE STUFF...
-//
-char* makeMessage(IoTDevice* iotDev)
-{
-    static char buffer[80];
-    const int   msg_size = 512;
-    char*       ptr      = (char*)malloc(msg_size);
-    time_t      rawtime;
-    struct tm   *ptm;
-  
-    time(&rawtime);
-    ptm = gmtime(&rawtime);
-    strftime(buffer,80,"%a %F %X",ptm);
-    iotDev->TOD = buffer;
-    int c = (strstr(buffer,":")-buffer) - 2;
-    mbed_stats_cpu_t stats;
-    mbed_stats_cpu_get(&stats);
-    printf("release mode");
-    printf("Uptime: %llu ", stats.uptime / 1000);
-    printf("Sleep time: %llu ", stats.sleep_time / 1000);
-    printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
-    printf("Send IoTHubClient Message@%s - ",&buffer[c]);
-    snprintf(ptr, msg_size, IOTDEVICE_MSG_FORMAT,
-                            iotDev->ObjectName,
-                            iotDev->ObjectType,
-                            iotDev->Version,
-                            iotDev->ReportingDevice,
-                            iotDev->lat,
-                            iotDev->lon,
-                            iotDev->gpstime,
-                            iotDev->gpsdate,
-                            iotDev->Temperature,
-                            iotDev->Humidity,
-                            iotDev->Pressure,
-                            iotDev->Tilt,
-                            iotDev->ButtonPress,
-                            iotDev->TOD);
-    return ptr;
-}
 
 void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_t size)
 {
@@ -302,23 +208,7 @@ void azure_task(void)
     // set C2D and device method callback
     IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
 
-    //
-    // setup the iotDev struction contents...
-    //
-    iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
-    iotDev->ObjectType      = (char*)"SensorData";
-    iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"STL496ZG-BG96";
-    iotDev->TOD             = (char*)"";
-    iotDev->Temperature     = 0.0;
-    iotDev->lat             = 0.0;
-    iotDev->lon             = 0.0;
-    iotDev->gpstime         = 0.0;
-    iotDev->Humidity        = 0;
-    iotDev->Pressure        = 0;
-    iotDev->Tilt            = 0x2;
-    iotDev->ButtonPress     = 0;
-    memset(iotDev->gpsdate,0x00,7);
+    setUpIotStruct(iotDev);
 
     while (runTest) {
         mbed_stats_cpu_t stats;
@@ -360,43 +250,6 @@ void azure_task(void)
 
         /* schedule IoTHubClient to send events/receive commands */
         IoTHubClient_LL_DoWork(iotHubClientHandle);
-
-        #if defined(MBED_HEAP_STATS_ENABLED)
-                mbed_stats_heap_t heap_stats; //jmf
-
-                mbed_stats_heap_get(&heap_stats);
-                printf("  Current heap: %lu\r\n", heap_stats.current_size);
-                printf(" Max heap size: %lu\r\n", heap_stats.max_size);
-                printf("     alloc_cnt:	%lu\r\n", heap_stats.alloc_cnt);
-                printf("alloc_fail_cnt:	%lu\r\n", heap_stats.alloc_fail_cnt);
-                printf("    total_size:	%lu\r\n", heap_stats.total_size);
-                printf(" reserved_size:	%lu\r\n", heap_stats.reserved_size);
-        #endif 
-
-        #if defined(MBED_STACK_STATS_ENABLED)
-                int cnt_ss = osThreadGetCount();
-                mbed_stats_stack_t *stats_ss = (mbed_stats_stack_t*) malloc(cnt_ss * sizeof(mbed_stats_stack_t));
-                
-                cnt_ss = mbed_stats_stack_get_each(stats_ss, cnt_ss);
-                for (int i = 0; i < cnt_ss; i++) 
-                    printf("Thread: 0x%lX, Stack size: %lu, Max stack: %lu\r\n", stats_ss[i].thread_id, stats_ss[i].reserved_size, stats_ss[i].max_size);
-        #endif 
-
-        #if defined(MBED_THREAD_STATS_ENABLED)
-        #define MAX_THREAD_STATS  10
-                    mbed_stats_thread_t *stats = new mbed_stats_thread_t[MAX_THREAD_STATS];
-                    int count = mbed_stats_thread_get_each(stats, MAX_THREAD_STATS);
-                    
-                    for(int i = 0; i < count; i++) {
-                        printf("ID: 0x%lx \n", stats[i].id);
-                        printf("Name: %s \n", stats[i].name);
-                        printf("State: %ld \n", stats[i].state);
-                        printf("Priority: %ld \n", stats[i].priority);
-                        printf("Stack Size: %ld \n", stats[i].stack_size);
-                        printf("Stack Space: %ld \n", stats[i].stack_space);
-                        printf("\n");
-                        }
-        #endif 
         ThisThread::sleep_for(10000);  //in msec
         }
     free(iotDev);
