@@ -112,56 +112,46 @@ void mems_init(void)
 
 int main(void)
 {
-    while(true) {
-        printf("hello!");
-        ThisThread::sleep_for(10000);
-        mbed_stats_cpu_t stats;
-        mbed_stats_cpu_get(&stats);
-        printf("release mode");
-        printf("Uptime: %llu ", stats.uptime / 1000);
-        printf("Sleep time: %llu ", stats.sleep_time / 1000);
-        printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
-    }
-    // printf("\r\n");
-    // printf("     ****\r\n");
-    // printf("    **  **     Azure IoTClient Example, version %s\r\n", APP_VERSION);
-    // printf("   **    **    by AVNET\r\n");
-    // printf("  ** ==== **   \r\n");
-    // printf("\r\n");
-    // printf("The example program interacts with Azure IoTHub sending \r\n");
-    // printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
-    // printf("->using %s Environmental Sensor\r\n", ENV_SENSOR);
-    // #ifdef IOTHUBTRANSPORTHTTP_H
-    //     printf("->using HTTPS Transport Protocol\r\n");
-    // #else
-    //     printf("->using MQTT Transport Protocol\r\n");
-    // #endif
-    // printf("\r\n");
+    printf("\r\n");
+    printf("     ****\r\n");
+    printf("    **  **     Azure IoTClient Example, version %s\r\n", APP_VERSION);
+    printf("   **    **    by AVNET\r\n");
+    printf("  ** ==== **   \r\n");
+    printf("\r\n");
+    printf("The example program interacts with Azure IoTHub sending \r\n");
+    printf("sensor data and receiving messeages (using ARM Mbed OS v5.x)\r\n");
+    printf("->using %s Environmental Sensor\r\n", ENV_SENSOR);
+    #ifdef IOTHUBTRANSPORTHTTP_H
+        printf("->using HTTPS Transport Protocol\r\n");
+    #else
+        printf("->using MQTT Transport Protocol\r\n");
+    #endif
+    printf("\r\n");
 
-    // if (platform_init() != 0) {
-    //    printf("Error initializing the platform\r\n");
-    //    return -1;
-    //    }
+    if (platform_init() != 0) {
+       printf("Error initializing the platform\r\n");
+       return -1;
+       }
 
-    // printf("[ start GPS ] ");
-    // gps.gpsPower(true);
-    // printf("Successful.\r\n[get GPS loc] ");
-    // fflush(stdout);
-    // gps.gpsLocation(&gdata);
-    // printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
+    printf("[ start GPS ] ");
+    gps.gpsPower(true);
+    printf("Successful.\r\n[get GPS loc] ");
+    fflush(stdout);
+    gps.gpsLocation(&gdata);
+    printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
 
-    // XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
-    // hum_temp = mems_expansion_board->ht_sensor;
-    // acc_gyro = mems_expansion_board->acc_gyro;
-    // pressure = mems_expansion_board->pt_sensor;
+    XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
+    hum_temp = mems_expansion_board->ht_sensor;
+    acc_gyro = mems_expansion_board->acc_gyro;
+    pressure = mems_expansion_board->pt_sensor;
 
-    // mems_init();
-    // azure_client_thread.start(azure_task);
+    mems_init();
+    azure_client_thread.start(azure_task);
 
-    // azure_client_thread.join();
-    // platform_deinit();
-    // printf(" - - - - - - - ALL DONE - - - - - - - \n");
+    azure_client_thread.join();
+    platform_deinit();
+    printf(" - - - - - - - ALL DONE - - - - - - - \n");
     return 0;
 }
 
@@ -273,11 +263,11 @@ void azure_task(void)
 
 
     /* Setup IoTHub client configuration */
-#ifdef IOTHUBTRANSPORTHTTP_H
-    IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
-#else
-    IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, MQTT_Protocol);
-#endif
+    #ifdef IOTHUBTRANSPORTHTTP_H
+        IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
+    #else
+        IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, MQTT_Protocol);
+    #endif
 
     if (iotHubClientHandle == NULL) {
         printf("Failed on IoTHubClient_Create\r\n");
@@ -288,20 +278,20 @@ void azure_task(void)
     if (IoTHubClient_LL_SetOption(iotHubClientHandle, "TrustedCerts", certificates) != IOTHUB_CLIENT_OK)
         printf("failure to set option \"TrustedCerts\"\r\n");
 
-#if MBED_CONF_APP_TELUSKIT == 1
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
-        printf("failure to set option \"product_info\"\r\n");
-#endif
+    #if MBED_CONF_APP_TELUSKIT == 1
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
+            printf("failure to set option \"product_info\"\r\n");
+    #endif
 
-#ifdef IOTHUBTRANSPORTHTTP_H
-    // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
-    // For more information, see:
-    //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
+    #ifdef IOTHUBTRANSPORTHTTP_H
+        // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
+        // For more information, see:
+        //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
 
-    unsigned int minimumPollingTime = 9;
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
-        printf("failure to set option \"MinimumPollingTime\"\r\n");
-#endif
+        unsigned int minimumPollingTime = 9;
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
+            printf("failure to set option \"MinimumPollingTime\"\r\n");
+    #endif
 
     IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
     if (iotDev == NULL) {
@@ -331,6 +321,11 @@ void azure_task(void)
     memset(iotDev->gpsdate,0x00,7);
 
     while (runTest) {
+        mbed_stats_cpu_t stats;
+        mbed_stats_cpu_get(&stats);
+        printf("Uptime: %llu ", stats.uptime / 1000);
+        printf("Sleep time: %llu ", stats.sleep_time / 1000);
+        printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
         char*  msg;
         size_t msgSize;
 
@@ -366,42 +361,42 @@ void azure_task(void)
         /* schedule IoTHubClient to send events/receive commands */
         IoTHubClient_LL_DoWork(iotHubClientHandle);
 
-#if defined(MBED_HEAP_STATS_ENABLED)
-        mbed_stats_heap_t heap_stats; //jmf
+        #if defined(MBED_HEAP_STATS_ENABLED)
+                mbed_stats_heap_t heap_stats; //jmf
 
-        mbed_stats_heap_get(&heap_stats);
-        printf("  Current heap: %lu\r\n", heap_stats.current_size);
-        printf(" Max heap size: %lu\r\n", heap_stats.max_size);
-        printf("     alloc_cnt:	%lu\r\n", heap_stats.alloc_cnt);
-        printf("alloc_fail_cnt:	%lu\r\n", heap_stats.alloc_fail_cnt);
-        printf("    total_size:	%lu\r\n", heap_stats.total_size);
-        printf(" reserved_size:	%lu\r\n", heap_stats.reserved_size);
-#endif 
+                mbed_stats_heap_get(&heap_stats);
+                printf("  Current heap: %lu\r\n", heap_stats.current_size);
+                printf(" Max heap size: %lu\r\n", heap_stats.max_size);
+                printf("     alloc_cnt:	%lu\r\n", heap_stats.alloc_cnt);
+                printf("alloc_fail_cnt:	%lu\r\n", heap_stats.alloc_fail_cnt);
+                printf("    total_size:	%lu\r\n", heap_stats.total_size);
+                printf(" reserved_size:	%lu\r\n", heap_stats.reserved_size);
+        #endif 
 
-#if defined(MBED_STACK_STATS_ENABLED)
-        int cnt_ss = osThreadGetCount();
-        mbed_stats_stack_t *stats_ss = (mbed_stats_stack_t*) malloc(cnt_ss * sizeof(mbed_stats_stack_t));
-        
-        cnt_ss = mbed_stats_stack_get_each(stats_ss, cnt_ss);
-        for (int i = 0; i < cnt_ss; i++) 
-            printf("Thread: 0x%lX, Stack size: %lu, Max stack: %lu\r\n", stats_ss[i].thread_id, stats_ss[i].reserved_size, stats_ss[i].max_size);
-#endif 
+        #if defined(MBED_STACK_STATS_ENABLED)
+                int cnt_ss = osThreadGetCount();
+                mbed_stats_stack_t *stats_ss = (mbed_stats_stack_t*) malloc(cnt_ss * sizeof(mbed_stats_stack_t));
+                
+                cnt_ss = mbed_stats_stack_get_each(stats_ss, cnt_ss);
+                for (int i = 0; i < cnt_ss; i++) 
+                    printf("Thread: 0x%lX, Stack size: %lu, Max stack: %lu\r\n", stats_ss[i].thread_id, stats_ss[i].reserved_size, stats_ss[i].max_size);
+        #endif 
 
-#if defined(MBED_THREAD_STATS_ENABLED)
-#define MAX_THREAD_STATS  10
-            mbed_stats_thread_t *stats = new mbed_stats_thread_t[MAX_THREAD_STATS];
-            int count = mbed_stats_thread_get_each(stats, MAX_THREAD_STATS);
-            
-            for(int i = 0; i < count; i++) {
-                printf("ID: 0x%lx \n", stats[i].id);
-                printf("Name: %s \n", stats[i].name);
-                printf("State: %ld \n", stats[i].state);
-                printf("Priority: %ld \n", stats[i].priority);
-                printf("Stack Size: %ld \n", stats[i].stack_size);
-                printf("Stack Space: %ld \n", stats[i].stack_space);
-                printf("\n");
-                }
-#endif 
+        #if defined(MBED_THREAD_STATS_ENABLED)
+        #define MAX_THREAD_STATS  10
+                    mbed_stats_thread_t *stats = new mbed_stats_thread_t[MAX_THREAD_STATS];
+                    int count = mbed_stats_thread_get_each(stats, MAX_THREAD_STATS);
+                    
+                    for(int i = 0; i < count; i++) {
+                        printf("ID: 0x%lx \n", stats[i].id);
+                        printf("Name: %s \n", stats[i].name);
+                        printf("State: %ld \n", stats[i].state);
+                        printf("Priority: %ld \n", stats[i].priority);
+                        printf("Stack Size: %ld \n", stats[i].stack_size);
+                        printf("Stack Space: %ld \n", stats[i].stack_space);
+                        printf("\n");
+                        }
+        #endif 
         ThisThread::sleep_for(10000);  //in msec
         }
     free(iotDev);
