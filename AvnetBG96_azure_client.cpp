@@ -12,7 +12,6 @@
 #include "azure_c_shared_utility/agenttime.h"
 #include "jsondecoder.h"
 #include "bg96gps.hpp"
-#include "button.hpp"
 #include "azure_message_helper.h"
 
 #define IOT_AGENT_OK CODEFIRST_OK
@@ -156,7 +155,7 @@ IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
 
 void azure_task(void)
 {
-    bool button_press = false, runTest = true;
+    bool runTest = true;
     bool tilt_detection_enabled=true;
     float gtemp, ghumid, gpress;
 
@@ -237,7 +236,6 @@ void azure_task(void)
         sendMessage(iotHubClientHandle, msg, msgSize);
         free(msg);
         iotDev->Tilt &= 0x2;
-        iotDev->ButtonPress = 0;
 
         /* schedule IoTHubClient to send events/receive commands */
         IoTHubClient_LL_DoWork(iotHubClientHandle);

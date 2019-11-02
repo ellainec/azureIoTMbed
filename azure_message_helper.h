@@ -19,7 +19,6 @@
      "\"Humidity\":\"%d\","        \
      "\"Pressure\":\"%d\","        \
      "\"Tilt\":\"%d\","            \
-     "\"ButtonPress\":\"%d\","     \
      "\"TOD\":\"%s UTC\""          \
    "}"
 
@@ -37,7 +36,6 @@ typedef struct IoTDevice_t {
     int   Humidity;
     int   Pressure;
     int   Tilt;
-    int   ButtonPress;
     char* TOD;
     } IoTDevice;       
 
@@ -57,7 +55,6 @@ void setUpIotStruct(IoTDevice* iotDev) {
     iotDev->Humidity        = 0;
     iotDev->Pressure        = 0;
     iotDev->Tilt            = 0x2;
-    iotDev->ButtonPress     = 0;
     memset(iotDev->gpsdate,0x00,7);
 }
 
@@ -119,7 +116,6 @@ char* makeMessage(IoTDevice* iotDev)
                             iotDev->Humidity,
                             iotDev->Pressure,
                             iotDev->Tilt,
-                            iotDev->ButtonPress,
                             iotDev->TOD);
     return ptr;
 }
