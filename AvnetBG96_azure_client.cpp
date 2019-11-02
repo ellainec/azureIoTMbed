@@ -40,7 +40,7 @@ static void azure_task(void);
 gps_data gdata; 
 bg96_gps gps;   
 BG96Interface* bg96Interface;
-
+bool connected = false;
 
 //
 // The mems sensor is setup to generate an interrupt with a tilt 
@@ -48,20 +48,20 @@ BG96Interface* bg96Interface;
 // initialize all the ensors...
 //
 
-static int tilt_event;
+//static int tilt_event;
 
-void mems_int1(void)
-{
-    tilt_event++;
-}
+// void mems_int1(void)
+// {
+//     tilt_event++;
+// }
 
 void mems_init(void)
 {
-    acc_gyro->attach_int1_irq(&mems_int1);  // Attach callback to LSM6DSL INT1
+    //acc_gyro->attach_int1_irq(&mems_int1);  // Attach callback to LSM6DSL INT1
     hum_temp->enable();                     // Enable HTS221 enviromental sensor
     pressure->enable();                     // Enable barametric pressure sensor
     acc_gyro->enable_x();                   // Enable LSM6DSL accelerometer
-    acc_gyro->enable_tilt_detection();      // Enable Tilt Detection
+    //acc_gyro->enable_tilt_detection();      // Enable Tilt Detection
 
 }
 
@@ -70,14 +70,60 @@ void startUp(void) {
        printf("Error initializing the platform\r\n");
     return;
     }
-    bg96Interface = easy_get_netif(true);
+    bg96Interface = (BG96Interface*) easy_get_netif(true);
     printf("[ start GPS ] ");
     gps.gpsPower(true);
     printf("Successful.\r\n[get GPS loc] ");
     fflush(stdout);
     gps.gpsLocation(&gdata);
     printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
+    connected = true;
+}
 
+void BG96_Modem_PowerON(void)
+{
+    DigitalOut BG96_RESET(D7);
+    DigitalOut BG96_PWRKEY(D10);
+    DigitalOut BG97_WAKE(D11);
+
+    BG96_RESET = 0;
+    BG96_PWRKEY = 0;
+    BG97_WAKE = 0;
+    wait_ms(300);
+
+    BG96_RESET = 1;
+    BG97_WAKE = 1;
+    BG96_PWRKEY = 1;
+    wait_ms(400);
+
+    BG96_RESET = 0;
+    wait_ms(10);
+}
+
+void BG96_Modem_PowerOFF(void)
+{
+    DigitalOut BG96_RESET(D7);
+    DigitalOut BG96_PWRKEY(D10);
+    DigitalOut BG97_WAKE(D11);
+
+    BG96_RESET = 0;
+    BG96_PWRKEY = 0;
+    BG97_WAKE = 0;
+    wait_ms(300);
+}
+
+void powerDown(){
+    connected = false;
+    nsapi_error_t ret;
+    ret = bg96Interface->disconnect();
+    if (ret == NSAPI_ERROR_OK) {
+        printf("disconnected succesfully\n");
+    } else if( ret == NSAPI_ERROR_DEVICE_ERROR) {
+        printf("disconnect not successful\n");
+    } else {
+        printf("dunno what I got...\n");
+    }
+    BG96_Modem_PowerOFF();
 }
 
 //
@@ -121,7 +167,7 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
 void azure_task(void)
 {
     bool runTest = true;
-    bool tilt_detection_enabled=true;
+    //bool tilt_detection_enabled=true;
     float gtemp, ghumid, gpress;
 
     int  k;
@@ -162,18 +208,19 @@ void azure_task(void)
 
     setUpIotStruct(iotDev);
 
-    while (runTest) {
+    while (connected) {
         mbed_stats_cpu_t stats;
         mbed_stats_cpu_get(&stats);
         printf("Uptime: %llu ", stats.uptime / 1000);
         printf("Sleep time: %llu ", stats.sleep_time / 1000);
         printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
 
-        if (bg96Interface->get_ip_address() == NULL) {
-            printf("not connected yet!");
+        if (connected) {
+            printf("connected!");
         } else {
-            printf("connected yay!");
+            printf("not connected!");
         }
+
         char*  msg;
         size_t msgSize;
 
@@ -193,10 +240,10 @@ void azure_task(void)
         iotDev->Humidity    = (int)ghumid;
         iotDev->Pressure    = (int)gpress;
 
-        if( tilt_event ) {
-            tilt_event = 0;
-            iotDev->Tilt |= 1;
-        }
+        // if( tilt_event ) {
+        //     tilt_event = 0;
+        //     iotDev->Tilt |= 1;
+        // }
 
         printf("(%04d)",msg_sent++);
         msg = makeMessage(iotDev);
@@ -207,9 +254,17 @@ void azure_task(void)
 
         /* schedule IoTHubClient to send events/receive commands */
         IoTHubClient_LL_DoWork(iotHubClientHandle);
+        powerDown();
         ThisThread::sleep_for(10000);  //in msec
-        platform_deinit();
-        }
+    }
+    while(true){
+        mbed_stats_cpu_t stats;
+        mbed_stats_cpu_get(&stats);
+        printf("Uptime: %llu ", stats.uptime / 1000);
+        printf("Sleep time: %llu ", stats.sleep_time / 1000);
+        printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
+        ThisThread::sleep_for(10000);  //in msec
+    }
     free(iotDev);
     IoTHubClient_LL_Destroy(iotHubClientHandle);
     return;
