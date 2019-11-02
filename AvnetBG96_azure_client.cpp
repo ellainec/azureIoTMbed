@@ -65,19 +65,11 @@ void mems_init(void)
 
 }
 
-//
-// The main routine simply prints a banner, initializes the system
-// starts the worker threads and waits for a termination (join)
-
-int main(void)
-{
-    printStartMessage();
-
+void startUp(void) {
     if (platform_init() != 0) {
        printf("Error initializing the platform\r\n");
-       return -1;
-       }
-
+    return;
+    }
     printf("[ start GPS ] ");
     gps.gpsPower(true);
     printf("Successful.\r\n[get GPS loc] ");
@@ -85,7 +77,16 @@ int main(void)
     gps.gpsLocation(&gdata);
     printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
+}
 
+//
+// The main routine simply prints a banner, initializes the system
+// starts the worker threads and waits for a termination (join)
+
+int main(void)
+{
+    printStartMessage();
+    startUp();
     XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
     hum_temp = mems_expansion_board->ht_sensor;
     acc_gyro = mems_expansion_board->acc_gyro;
@@ -200,6 +201,7 @@ void azure_task(void)
         /* schedule IoTHubClient to send events/receive commands */
         IoTHubClient_LL_DoWork(iotHubClientHandle);
         ThisThread::sleep_for(10000);  //in msec
+        platform_deinit();
         }
     free(iotDev);
     IoTHubClient_LL_Destroy(iotHubClientHandle);
