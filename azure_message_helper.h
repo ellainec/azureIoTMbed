@@ -96,13 +96,6 @@ char* makeMessage(IoTDevice* iotDev)
     strftime(buffer,80,"%a %F %X",ptm);
     iotDev->TOD = buffer;
     int c = (strstr(buffer,":")-buffer) - 2;
-    mbed_stats_cpu_t stats;
-    mbed_stats_cpu_get(&stats);
-    printf("release mode");
-    printf("Uptime: %llu ", stats.uptime / 1000);
-    printf("Sleep time: %llu ", stats.sleep_time / 1000);
-    printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
-    printf("Send IoTHubClient Message@%s - ",&buffer[c]);
     snprintf(ptr, msg_size, IOTDEVICE_MSG_FORMAT,
                             iotDev->ObjectName,
                             iotDev->ObjectType,
