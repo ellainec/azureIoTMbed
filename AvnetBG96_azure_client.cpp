@@ -36,7 +36,7 @@ Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread"
 Thread power_down_thread(osPriorityNormal, 8*1024, NULL, "power_down_thread");
 Thread power_up_thread(osPriorityNormal, 8*1024, NULL, "power_up_thread");
 static void azure_task(void);
-EventFlags startFlag;
+EventFlags powerUpFlag;
 EventFlags connectedFlag;
 EventFlags sendMessageFlag;
 EventFlags powerDownFlag;
@@ -73,9 +73,9 @@ void mems_init(void)
 
 }
 
-void startUp(void) {
+void powerUp(void) {
     while(true){
-        startFlag.wait_all(0x1);
+        powerUpFlag.wait_all(0x1);
         printf("POWERING ON \n");
         if (platform_init() != 0) {
             printf("Error initializing the platform\r\n");
@@ -85,11 +85,11 @@ void startUp(void) {
         connected = true;
         bg96Interface = (BG96Interface*) easy_get_netif(true);
         printf("[ start GPS ] ");
-        gps.gpsPower(true);
+        //gps.gpsPower(true);
         printf("Successful.\r\n[get GPS loc] ");
         fflush(stdout);
-        gps.gpsLocation(&gdata);
-        printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
+        //gps.gpsLocation(&gdata);
+        //printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
         connectedFlag.set(0x1);
     }
 }
@@ -157,21 +157,21 @@ int main(void)
     hum_temp = mems_expansion_board->ht_sensor;
     acc_gyro = mems_expansion_board->acc_gyro;
     pressure = mems_expansion_board->pt_sensor;
-    power_up_thread.start(startUp);
+    power_up_thread.start(powerUp);
     azure_client_thread.start(azure_task);
     power_down_thread.start(powerDown);
     mems_init();
     while (true) {
         printf("hello thereeee \n");
-        startFlag.set(0x1);
+        powerUpFlag.set(0x1);
         connectedFlag.wait_all(0x1);
         if (connected) {
             sendMessageFlag.set(0x1);
             messageSentFlag.wait_all(0x1);
             powerDownFlag.set(0x1);
             powerDownCompleteFlag.wait_all(0x1);
-        }
-        ThisThread::sleep_for(15000);
+        } 
+        ThisThread::sleep_for(10000);
     }
     platform_deinit();
     printf(" - - - - - - - ALL DONE - - - - - - - \n");
@@ -202,45 +202,43 @@ void azure_task(void)
 
     int  k;
     int  msg_sent=1;
-    int onlyOnce = 1;
 
-
-    /* Setup IoTHub client configuration */
-    IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
-
-
-    if (iotHubClientHandle == NULL) {
-        printf("Failed on IoTHubClient_Create\r\n");
-        return;
-        }
-
-    // add the certificate information
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "TrustedCerts", certificates) != IOTHUB_CLIENT_OK)
-        printf("failure to set option \"TrustedCerts\"\r\n");
-
-    #if MBED_CONF_APP_TELUSKIT == 1
-        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
-            printf("failure to set option \"product_info\"\r\n");
-    #endif
-
-    // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
-    // For more information, see:
-    //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
-
-    unsigned int minimumPollingTime = 9;
-    if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
-            printf("failure to set option \"MinimumPollingTime\"\r\n");
-
-    IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
-    if (iotDev == NULL) {
-        printf("Failed to malloc space for IoTDevice\r\n");
-        return;
-        }
-
-    setUpIotStruct(iotDev);
 
     while (true) {
         sendMessageFlag.wait_all(0x1);
+
+        /* Setup IoTHub client configuration */
+        IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
+
+        if (iotHubClientHandle == NULL) {
+            printf("Failed on IoTHubClient_Create\r\n");
+            return;
+            }
+
+        // add the certificate information
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "TrustedCerts", certificates) != IOTHUB_CLIENT_OK)
+            printf("failure to set option \"TrustedCerts\"\r\n");
+
+        #if MBED_CONF_APP_TELUSKIT == 1
+            if (IoTHubClient_LL_SetOption(iotHubClientHandle, "product_info", "TELUSIOTKIT") != IOTHUB_CLIENT_OK)
+                printf("failure to set option \"product_info\"\r\n");
+        #endif
+
+        // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
+        // For more information, see:
+        //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
+
+        unsigned int minimumPollingTime = 9;
+        if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
+                printf("failure to set option \"MinimumPollingTime\"\r\n");
+
+        IoTDevice* iotDev = new IoTDevice{};
+        // IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
+        if (iotDev == NULL) {
+            printf("Failed to malloc space for IoTDevice\r\n");
+            return;
+        }
+        setUpIotStruct(iotDev);
         mbed_stats_cpu_t stats;
         mbed_stats_cpu_get(&stats);
         printf("Uptime: %llu ", stats.uptime / 1000);
@@ -250,11 +248,11 @@ void azure_task(void)
         char*  msg;
         size_t msgSize;
 
-        gps.gpsLocation(&gdata);
-        iotDev->lat = gdata.lat;
-        iotDev->lon = gdata.lon;
-        iotDev->gpstime = gdata.utc;
-        memcpy(iotDev->gpsdate, gdata.date, 7);
+        // gps.gpsLocation(&gdata);
+        // iotDev->lat = gdata.lat;
+        // iotDev->lon = gdata.lon;
+        // iotDev->gpstime = gdata.utc;
+        // memcpy(iotDev->gpsdate, gdata.date, 7);
 
 
         hum_temp->get_temperature(&gtemp);           // get Temp
@@ -279,12 +277,12 @@ void azure_task(void)
         iotDev->Tilt &= 0x2;
 
         /* schedule IoTHubClient to send events/receive commands */
-        //IoTHubClient_LL_DoWork(iotHubClientHandle);
+        IoTHubClient_LL_DoWork(iotHubClientHandle);
         printf("MESSAGE FLAG SENT SET\n");
         messageSentFlag.set(0x1);
+        delete iotDev;
+        IoTHubClient_LL_Destroy(iotHubClientHandle);
     }
-    free(iotDev);
-    IoTHubClient_LL_Destroy(iotHubClientHandle);
     return;
 }
 
