@@ -69,7 +69,7 @@ static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
 
 
-static const char* connectionString = "HostName=iotc-3ba337e8-74be-4fe6-8352-fa5b129733ae.azure-devices.net;DeviceId=579244a3-1b7c-43b9-94ea-0bd3bb96ebb0;SharedAccessKey=mrxTBlEKcnWlWtROvycCuw5Mbog2vi9jlQEliqpPNN8=";
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=a43789a5-177c-45e1-aa0f-2f5782e48be3;SharedAccessKey=wx7Xi5OcwtBNlc1+EAE1CNVVsKgX0GQEqUcNfp/U2Aw=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
@@ -304,7 +304,7 @@ void azure_task(void)
     iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
     iotDev->ObjectType      = (char*)"SensorData";
     iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"ellaine-testing";
+    iotDev->ReportingDevice = (char*)"NucleoBoard#1";
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
     iotDev->lat             = 0.0;
