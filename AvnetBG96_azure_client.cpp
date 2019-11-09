@@ -15,7 +15,6 @@
 #include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/agenttime.h"
 #include "jsondecoder.h"
-#include "bg96gps.hpp"
 #include "button.hpp"
 
 #define APP_VERSION "1.2"
@@ -75,13 +74,7 @@ static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a3
 #define CTOF(x)         (x)
 
 Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread");
-static void azure_task(void);
-
-
-/* create the GPS elements for example program */
-gps_data gdata; 
-bg96_gps gps;   
-
+static void azure_task(void); 
 
 
 //
@@ -133,13 +126,6 @@ int main(void)
        printf("Error initializing the platform\r\n");
        return -1;
        }
-
-    printf("[ start GPS ] ");
-    gps.gpsPower(true);
-    printf("Successful.\r\n[get GPS loc] ");
-    fflush(stdout);
-    gps.gpsLocation(&gdata);
-    printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
 
     XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
@@ -319,13 +305,6 @@ void azure_task(void)
     while (runTest) {
         char*  msg;
         size_t msgSize;
-
-        gps.gpsLocation(&gdata);
-        iotDev->lat = gdata.lat;
-        iotDev->lon = gdata.lon;
-        iotDev->gpstime = gdata.utc;
-        memcpy(iotDev->gpsdate, gdata.date, 7);
-
 
         hum_temp->get_temperature(&gtemp);           // get Temp
         hum_temp->get_humidity(&ghumid);             // get Humidity
