@@ -27,7 +27,7 @@ static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
 
 
-static const char* connectionString = "HostName=iotc-3ba337e8-74be-4fe6-8352-fa5b129733ae.azure-devices.net;DeviceId=579244a3-1b7c-43b9-94ea-0bd3bb96ebb0;SharedAccessKey=mrxTBlEKcnWlWtROvycCuw5Mbog2vi9jlQEliqpPNN8=";
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
@@ -42,7 +42,8 @@ EventFlags sendMessageFlag;
 EventFlags powerDownFlag;
 EventFlags powerDownCompleteFlag;
 EventFlags messageSentFlag;
-
+EventFlags deleteOK;
+size_t g_message_count_send_confirmations;
 
 /* create the GPS elements for example program */
 gps_data gdata; 
@@ -171,13 +172,21 @@ int main(void)
             powerDownFlag.set(0x1);
             powerDownCompleteFlag.wait_all(0x1);
         } 
-        ThisThread::sleep_for(10000);
+        ThisThread::sleep_for(180000);
     }
     platform_deinit();
     printf(" - - - - - - - ALL DONE - - - - - - - \n");
     return 0;
 }
 
+static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
+{
+    //userContextCallback;
+    // When a message is sent this callback will get envoked
+    g_message_count_send_confirmations++;
+    printf("Confirmation callback received for message %lu with result %s\r\n", (unsigned long)g_message_count_send_confirmations, ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
+    deleteOK.set(0x1);
+}
 
 void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_t size)
 {
@@ -186,7 +195,7 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
         printf("unable to create a new IoTHubMessage\r\n");
         return;
         }
-    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, NULL, NULL) != IOTHUB_CLIENT_OK)
+    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, send_confirm_callback, NULL) != IOTHUB_CLIENT_OK)
         printf("FAILED to send! [RSSI=%d]\n", platform_RSSI());
     else
         printf("OK. [RSSI=%d]\n",platform_RSSI());
@@ -277,11 +286,18 @@ void azure_task(void)
         iotDev->Tilt &= 0x2;
 
         /* schedule IoTHubClient to send events/receive commands */
-        IoTHubClient_LL_DoWork(iotHubClientHandle);
+        IOTHUB_CLIENT_STATUS status;
+        while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
+        {
+        	printf("busy \n");
+            IoTHubClient_LL_DoWork(iotHubClientHandle);
+            ThisThread::sleep_for(100); 
+        }
         printf("MESSAGE FLAG SENT SET\n");
-        messageSentFlag.set(0x1);
+        deleteOK.wait_all(0x1);
         delete iotDev;
         IoTHubClient_LL_Destroy(iotHubClientHandle);
+        messageSentFlag.set(0x1);
     }
     return;
 }
