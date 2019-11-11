@@ -16,9 +16,11 @@
 #include "azure_c_shared_utility/agenttime.h"
 #include "jsondecoder.h"
 #include "button.hpp"
+#include "azure_c_shared_utility/threadapi.h"
 
 #define APP_VERSION "1.2"
 #define IOT_AGENT_OK CODEFIRST_OK
+#define MBED_THREAD_STATS_ENABLED
 
 #include "azure_certs.h"
 
@@ -57,7 +59,7 @@ typedef struct IoTDevice_t {
      "\"Tilt\":\"%d\","            \
      "\"ButtonPress\":\"%d\","     \
      "\"TOD\":\"%s UTC\""          \
-   "}"                             
+   "}"
 
 /* initialize the expansion board && sensors */
 
@@ -68,17 +70,17 @@ static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
 
 
-static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=a43789a5-177c-45e1-aa0f-2f5782e48be3;SharedAccessKey=wx7Xi5OcwtBNlc1+EAE1CNVVsKgX0GQEqUcNfp/U2Aw=";
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
 
-Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread");
-static void azure_task(void); 
+Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread"); // @suppress("Type cannot be resolved")
+static void azure_task(void);
 
 
 //
-// The mems sensor is setup to generate an interrupt with a tilt 
+// The mems sensor is setup to generate an interrupt with a tilt
 // is detected at which time the blue LED is set to blink, also
 // initialize all the ensors...
 //
@@ -103,6 +105,8 @@ void mems_init(void)
 //
 // The main routine simply prints a banner, initializes the system
 // starts the worker threads and waits for a termination (join)
+
+static size_t g_message_count_send_confirmations = 0;
 
 int main(void)
 {
@@ -145,10 +149,10 @@ int main(void)
 //
 // This function sends the actual message to azure
 //
-
+//
 // *************************************************************
 //  AZURE STUFF...
-//
+
 char* makeMessage(IoTDevice* iotDev)
 {
     static char buffer[80];
@@ -156,7 +160,7 @@ char* makeMessage(IoTDevice* iotDev)
     char*       ptr      = (char*)malloc(msg_size);
     time_t      rawtime;
     struct tm   *ptm;
-  
+
     time(&rawtime);
     ptm = gmtime(&rawtime);
     strftime(buffer,80,"%a %F %X",ptm);
@@ -182,6 +186,14 @@ char* makeMessage(IoTDevice* iotDev)
     return ptr;
 }
 
+static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
+{
+    //userContextCallback;
+    // When a message is sent this callback will get envoked
+    g_message_count_send_confirmations++;
+    printf("Confirmation callback received for message %lu with result %s\r\n", (unsigned long)g_message_count_send_confirmations, ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
+}
+
 void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_t size)
 {
     IOTHUB_MESSAGE_HANDLE messageHandle = IoTHubMessage_CreateFromByteArray((const unsigned char*)buffer, size);
@@ -189,7 +201,7 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
         printf("unable to create a new IoTHubMessage\r\n");
         return;
         }
-    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, NULL, NULL) != IOTHUB_CLIENT_OK)
+    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, send_confirm_callback, NULL) != IOTHUB_CLIENT_OK)
         printf("FAILED to send! [RSSI=%d]\n", platform_RSSI());
     else
         printf("OK. [RSSI=%d]\n",platform_RSSI());
@@ -198,7 +210,7 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
 }
 
 IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
-    IOTHUB_MESSAGE_HANDLE message, 
+    IOTHUB_MESSAGE_HANDLE message,
     void *userContextCallback)
 {
     const unsigned char *buffer = NULL;
@@ -234,6 +246,7 @@ IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
     return IOTHUBMESSAGE_ACCEPTED;
 }
 
+
 void azure_task(void)
 {
     bool button_press = false, runTest = true;
@@ -266,7 +279,7 @@ void azure_task(void)
 #endif
 
 #ifdef IOTHUBTRANSPORTHTTP_H
-    // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes. 
+    // polls will happen effectively at ~10 seconds.  The default value of minimumPollingTime is 25 minutes.
     // For more information, see:
     //     https://azure.microsoft.com/documentation/articles/iot-hub-devguide/#messaging
 
@@ -275,14 +288,18 @@ void azure_task(void)
         printf("failure to set option \"MinimumPollingTime\"\r\n");
 #endif
 
+    if (IoTHubClientCore_LL_SetRetryPolicy(iotHubClientHandle, IOTHUB_CLIENT_RETRY_NONE, 1) != IOTHUB_CLIENT_OK){
+        printf("failure to set retry option\n");
+    }
     IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
+
     if (iotDev == NULL) {
         printf("Failed to malloc space for IoTDevice\r\n");
         return;
         }
 
     // set C2D and device method callback
-    IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
+    // IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
 
     //
     // setup the iotDev struction contents...
@@ -290,7 +307,7 @@ void azure_task(void)
     iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
     iotDev->ObjectType      = (char*)"SensorData";
     iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"NucleoBoard#1";
+    iotDev->ReportingDevice = (char*)"testing";
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
     iotDev->lat             = 0.0;
@@ -329,7 +346,15 @@ void azure_task(void)
         iotDev->ButtonPress = 0;
 
         /* schedule IoTHubClient to send events/receive commands */
-        IoTHubClient_LL_DoWork(iotHubClientHandle);
+
+        IOTHUB_CLIENT_STATUS status;
+
+        while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
+        {
+        	printf("busy \n");
+            IoTHubClient_LL_DoWork(iotHubClientHandle);
+            ThreadAPI_Sleep(100); // @suppress("Invalid arguments")
+        }
 
 #if defined(MBED_HEAP_STATS_ENABLED)
         mbed_stats_heap_t heap_stats; //jmf
@@ -341,22 +366,22 @@ void azure_task(void)
         printf("alloc_fail_cnt:	%lu\r\n", heap_stats.alloc_fail_cnt);
         printf("    total_size:	%lu\r\n", heap_stats.total_size);
         printf(" reserved_size:	%lu\r\n", heap_stats.reserved_size);
-#endif 
+#endif
 
 #if defined(MBED_STACK_STATS_ENABLED)
         int cnt_ss = osThreadGetCount();
         mbed_stats_stack_t *stats_ss = (mbed_stats_stack_t*) malloc(cnt_ss * sizeof(mbed_stats_stack_t));
-        
+
         cnt_ss = mbed_stats_stack_get_each(stats_ss, cnt_ss);
-        for (int i = 0; i < cnt_ss; i++) 
+        for (int i = 0; i < cnt_ss; i++)
             printf("Thread: 0x%lX, Stack size: %lu, Max stack: %lu\r\n", stats_ss[i].thread_id, stats_ss[i].reserved_size, stats_ss[i].max_size);
-#endif 
+#endif
 
 #if defined(MBED_THREAD_STATS_ENABLED)
 #define MAX_THREAD_STATS  10
             mbed_stats_thread_t *stats = new mbed_stats_thread_t[MAX_THREAD_STATS];
             int count = mbed_stats_thread_get_each(stats, MAX_THREAD_STATS);
-            
+
             for(int i = 0; i < count; i++) {
                 printf("ID: 0x%lx \n", stats[i].id);
                 printf("Name: %s \n", stats[i].name);
@@ -366,8 +391,14 @@ void azure_task(void)
                 printf("Stack Space: %ld \n", stats[i].stack_space);
                 printf("\n");
                 }
-#endif 
-        ThisThread::sleep_for(10000);  //in msec
+#endif
+        printf("going to sleep \n");
+        ThisThread::sleep_for(5000);  //in msec // @suppress("Function cannot be resolved")
+
+
+//        ThisThread::sleep_for(60000); // @suppress("Function cannot be resolved")
+//        printf("going to sleep \n");
+//        ThisThread::sleep_for(60000); // @suppress("Function cannot be resolved")
         }
     free(iotDev);
     IoTHubClient_LL_Destroy(iotHubClientHandle);
