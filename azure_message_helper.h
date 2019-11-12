@@ -46,7 +46,7 @@ void setUpIotStruct(IoTDevice* iotDev) {
     iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
     iotDev->ObjectType      = (char*)"SensorData";
     iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"ellaine testing";
+    iotDev->ReportingDevice = (char*)"no_gps_5min";
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
     iotDev->lat             = 0.0;

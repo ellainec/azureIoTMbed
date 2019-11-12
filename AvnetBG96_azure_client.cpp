@@ -27,35 +27,18 @@ static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
 
 
-static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=a43789a5-177c-45e1-aa0f-2f5782e48be3;SharedAccessKey=wx7Xi5OcwtBNlc1+EAE1CNVVsKgX0GQEqUcNfp/U2Aw=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
 
-Thread azure_client_thread(osPriorityNormal, 8*1024, NULL, "azure_client_thread");
-Thread power_down_thread(osPriorityNormal, 8*1024, NULL, "power_down_thread");
-Thread power_up_thread(osPriorityNormal, 8*1024, NULL, "power_up_thread");
+Thread azure_client_thread(osPriorityNormal, 10*1024, NULL, "azure_client_thread");
 static void azure_task(void);
-EventFlags powerUpFlag;
-EventFlags connectedFlag;
-EventFlags sendMessageFlag;
-EventFlags powerDownFlag;
-EventFlags powerDownCompleteFlag;
-EventFlags messageSentFlag;
 EventFlags deleteOK;
 size_t g_message_count_send_confirmations;
 
 /* create the GPS elements for example program */
-gps_data gdata; 
-bg96_gps gps;   
 BG96Interface* bg96Interface;
-bool connected = false;
-
-//
-// The mems sensor is setup to generate an interrupt with a tilt 
-// is detected at which time the blue LED is set to blink, also
-// initialize all the ensors...
-//
 
 //static int tilt_event;
 
@@ -75,24 +58,14 @@ void mems_init(void)
 }
 
 void powerUp(void) {
-    while(true){
-        powerUpFlag.wait_all(0x1);
         printf("POWERING ON \n");
         if (platform_init() != 0) {
             printf("Error initializing the platform\r\n");
-            connectedFlag.set(0x1);
+            //connectedFlag.set(0x1);
             return;
         }
-        connected = true;
+        // connected = true;
         bg96Interface = (BG96Interface*) easy_get_netif(true);
-        printf("[ start GPS ] ");
-        //gps.gpsPower(true);
-        printf("Successful.\r\n[get GPS loc] ");
-        fflush(stdout);
-        //gps.gpsLocation(&gdata);
-        //printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
-        connectedFlag.set(0x1);
-    }
 }
 
 void BG96_Modem_PowerON(void)
@@ -128,23 +101,8 @@ void BG96_Modem_PowerOFF(void)
 }
 
 void powerDown(){
-    while(true){
-        powerDownFlag.wait_all(0x1);
-        printf("POWERING OFF\n");
-        nsapi_error_t ret;
-        ret = bg96Interface->disconnect();
-        if (ret == NSAPI_ERROR_OK) {
-            printf("disconnected succesfully\n");
-        } else if( ret == NSAPI_ERROR_DEVICE_ERROR) {
-            printf("disconnect not successful\n");
-        } else {
-            printf("dunno what I got...\n");
-        }
-        connected = false;
+        platform_deinit();
         BG96_Modem_PowerOFF();
-        printf("DONE POWERING OFF\n");
-        powerDownCompleteFlag.set(0x1);
-    }
 }
 
 //
@@ -153,27 +111,13 @@ void powerDown(){
 
 int main(void)
 {
-    printStartMessage();
+    //printStartMessage();
     XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
     hum_temp = mems_expansion_board->ht_sensor;
     acc_gyro = mems_expansion_board->acc_gyro;
     pressure = mems_expansion_board->pt_sensor;
-    power_up_thread.start(powerUp);
     azure_client_thread.start(azure_task);
-    power_down_thread.start(powerDown);
-    mems_init();
-    while (true) {
-        printf("hello thereeee \n");
-        powerUpFlag.set(0x1);
-        connectedFlag.wait_all(0x1);
-        if (connected) {
-            sendMessageFlag.set(0x1);
-            messageSentFlag.wait_all(0x1);
-            powerDownFlag.set(0x1);
-            powerDownCompleteFlag.wait_all(0x1);
-        } 
-        ThisThread::sleep_for(180000);
-    }
+    azure_client_thread.join();
     platform_deinit();
     printf(" - - - - - - - ALL DONE - - - - - - - \n");
     return 0;
@@ -184,7 +128,6 @@ static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void
     //userContextCallback;
     // When a message is sent this callback will get envoked
     g_message_count_send_confirmations++;
-    printf("Confirmation callback received for message %lu with result %s\r\n", (unsigned long)g_message_count_send_confirmations, ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
     deleteOK.set(0x1);
 }
 
@@ -205,7 +148,6 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
 
 void azure_task(void)
 {
-    bool runTest = true;
     //bool tilt_detection_enabled=true;
     float gtemp, ghumid, gpress;
 
@@ -214,8 +156,8 @@ void azure_task(void)
 
 
     while (true) {
-        sendMessageFlag.wait_all(0x1);
-
+        powerUp();
+        mems_init();
         /* Setup IoTHub client configuration */
         IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
 
@@ -241,18 +183,16 @@ void azure_task(void)
         if (IoTHubClient_LL_SetOption(iotHubClientHandle, "MinimumPollingTime", &minimumPollingTime) != IOTHUB_CLIENT_OK)
                 printf("failure to set option \"MinimumPollingTime\"\r\n");
 
-        IoTDevice* iotDev = new IoTDevice{};
-        // IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
+        IoTDevice* iotDev = (IoTDevice*)malloc(sizeof(IoTDevice));
         if (iotDev == NULL) {
-            printf("Failed to malloc space for IoTDevice\r\n");
             return;
         }
         setUpIotStruct(iotDev);
-        mbed_stats_cpu_t stats;
-        mbed_stats_cpu_get(&stats);
-        printf("Uptime: %llu ", stats.uptime / 1000);
-        printf("Sleep time: %llu ", stats.sleep_time / 1000);
-        printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
+        // mbed_stats_cpu_t stats;
+        // mbed_stats_cpu_get(&stats);
+        // printf("Uptime: %llu ", stats.uptime / 1000);
+        // printf("Sleep time: %llu ", stats.sleep_time / 1000);
+        // printf("Deep Sleep: %llu\n", stats.deep_sleep_time / 1000);
 
         char*  msg;
         size_t msgSize;
@@ -289,15 +229,14 @@ void azure_task(void)
         IOTHUB_CLIENT_STATUS status;
         while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
         {
-        	printf("busy \n");
             IoTHubClient_LL_DoWork(iotHubClientHandle);
             ThisThread::sleep_for(100); 
         }
-        printf("MESSAGE FLAG SENT SET\n");
         deleteOK.wait_all(0x1);
-        delete iotDev;
+        free(iotDev);
         IoTHubClient_LL_Destroy(iotHubClientHandle);
-        messageSentFlag.set(0x1);
+        powerDown();
+        ThisThread::sleep_for(300000);
     }
     return;
 }
