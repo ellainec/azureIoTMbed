@@ -57,65 +57,22 @@ void mems_init(void)
 
 }
 
-void powerUp(void) {
-        printf("POWERING ON \n");
-        if (platform_init() != 0) {
-            printf("Error initializing the platform\r\n");
-            //connectedFlag.set(0x1);
-            return;
-        }
-        // connected = true;
-        bg96Interface = (BG96Interface*) easy_get_netif(true);
-}
-
-void BG96_Modem_PowerON(void)
-{
-    DigitalOut BG96_RESET(D7);
-    DigitalOut BG96_PWRKEY(D10);
-    DigitalOut BG97_WAKE(D11);
-
-    BG96_RESET = 0;
-    BG96_PWRKEY = 0;
-    BG97_WAKE = 0;
-    wait_ms(300);
-
-    BG96_RESET = 1;
-    BG97_WAKE = 1;
-    BG96_PWRKEY = 1;
-    wait_ms(400);
-
-    BG96_RESET = 0;
-    wait_ms(10);
-}
-
-void BG96_Modem_PowerOFF(void)
-{
-    DigitalOut BG96_RESET(D7);
-    DigitalOut BG96_PWRKEY(D10);
-    DigitalOut BG97_WAKE(D11);
-
-    BG96_RESET = 0;
-    BG96_PWRKEY = 0;
-    BG97_WAKE = 0;
-    wait_ms(300);
-}
-
-void powerDown(){
-        platform_deinit();
-        BG96_Modem_PowerOFF();
-}
-
 //
 // The main routine simply prints a banner, initializes the system
 // starts the worker threads and waits for a termination (join)
 
 int main(void)
 {
+     if (platform_init() != 0) {
+         printf("Error initializing the platform\r\n");
+        return 0;
+    }
     //printStartMessage();
     XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
     hum_temp = mems_expansion_board->ht_sensor;
     acc_gyro = mems_expansion_board->acc_gyro;
     pressure = mems_expansion_board->pt_sensor;
+    mems_init();
     azure_client_thread.start(azure_task);
     azure_client_thread.join();
     platform_deinit();
@@ -125,9 +82,6 @@ int main(void)
 
 static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
 {
-    //userContextCallback;
-    // When a message is sent this callback will get envoked
-    g_message_count_send_confirmations++;
     deleteOK.set(0x1);
 }
 
@@ -156,8 +110,7 @@ void azure_task(void)
 
 
     while (true) {
-        powerUp();
-        mems_init();
+        printf("at start of while\n");
         /* Setup IoTHub client configuration */
         IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle = IoTHubClient_LL_CreateFromConnectionString(connectionString, HTTP_Protocol);
 
@@ -229,14 +182,16 @@ void azure_task(void)
         IOTHUB_CLIENT_STATUS status;
         while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
         {
+            printf("at dowork\n");
             IoTHubClient_LL_DoWork(iotHubClientHandle);
             ThisThread::sleep_for(100); 
         }
         deleteOK.wait_all(0x1);
         free(iotDev);
         IoTHubClient_LL_Destroy(iotHubClientHandle);
-        powerDown();
-        ThisThread::sleep_for(300000);
+        bg96Interface->psm();
+        ThisThread::sleep_for(10000);
+        bg96Interface->wakeUp();
     }
     return;
 }
