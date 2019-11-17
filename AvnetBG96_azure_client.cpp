@@ -30,10 +30,9 @@ typedef struct IoTDevice_t {
     char* ObjectType;
     char* Version;
     char* ReportingDevice;
-    float lat;
-    float lon;
-    float gpstime;
-    char  gpsdate[7];
+    int mag1;
+    int mag2;
+    int mag3;
     float Temperature;
     int   Humidity;
     int   Pressure;
@@ -48,11 +47,9 @@ typedef struct IoTDevice_t {
      "\"ObjectType\":\"%s\","      \
      "\"Version\":\"%s\","         \
      "\"ReportingDevice\":\"%s\"," \
-     "\"location\":{"              \
-     "\"lat\":\"%6.3f\","          \
-     "\"lon\":\"%6.3f\"},"         \
-     "\"GPSTime\":\"%6.0f\","      \
-     "\"GPSDate\":\"%s\","         \
+     "\"mag1\":\"%d\","            \
+     "\"mag2\":\"%d\","            \
+     "\"mag3\":\"%d\","            \
      "\"Temperature\":\"%.02f\","  \
      "\"Humidity\":\"%d\","        \
      "\"Pressure\":\"%d\","        \
@@ -68,6 +65,7 @@ typedef struct IoTDevice_t {
 static HTS221Sensor   *hum_temp;
 static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
+static LSM303AGRMagSensor *mag;
 
 
 static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
@@ -99,6 +97,7 @@ void mems_init(void)
     pressure->enable();                     // Enable barametric pressure sensor
     acc_gyro->enable_x();                   // Enable LSM6DSL accelerometer
     acc_gyro->enable_tilt_detection();      // Enable Tilt Detection
+    mag->enable();
 
 }
 
@@ -136,6 +135,7 @@ int main(void)
     hum_temp = mems_expansion_board->ht_sensor;
     acc_gyro = mems_expansion_board->acc_gyro;
     pressure = mems_expansion_board->pt_sensor;
+    mag      = mems_expansion_board->magnetometer;
 
     mems_init();
     azure_client_thread.start(azure_task);
@@ -173,10 +173,9 @@ char* makeMessage(IoTDevice* iotDev)
                             iotDev->ObjectType,
                             iotDev->Version,
                             iotDev->ReportingDevice,
-                            iotDev->lat,
-                            iotDev->lon,
-                            iotDev->gpstime,
-                            iotDev->gpsdate,
+                            iotDev->mag1,
+                            iotDev->mag2,
+                            iotDev->mag3,
                             iotDev->Temperature,
                             iotDev->Humidity,
                             iotDev->Pressure,
@@ -310,27 +309,31 @@ void azure_task(void)
     iotDev->ReportingDevice = (char*)"testing";
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
-    iotDev->lat             = 0.0;
-    iotDev->lon             = 0.0;
-    iotDev->gpstime         = 0.0;
+    iotDev->mag1            = 0;
+    iotDev->mag2            = 0;
+    iotDev->mag3            = 0;
     iotDev->Humidity        = 0;
     iotDev->Pressure        = 0;
     iotDev->Tilt            = 0x2;
     iotDev->ButtonPress     = 0;
-    memset(iotDev->gpsdate,0x00,7);
 
     while (runTest) {
         char*  msg;
         size_t msgSize;
+        int32_t magData[3];
 
         hum_temp->get_temperature(&gtemp);           // get Temp
         hum_temp->get_humidity(&ghumid);             // get Humidity
         pressure->get_pressure(&gpress);             // get pressure
-
+        mag->get_m_axes(magData);
+        printf("%d-%d-%d\n", magData[0], magData[1], magData[2]);
 
         iotDev->Temperature = CTOF(gtemp);
         iotDev->Humidity    = (int)ghumid;
         iotDev->Pressure    = (int)gpress;
+        iotDev->mag1        = magData[0];
+        iotDev->mag2        = magData[1];
+        iotDev->mag3        = magData[2];
 
         if( tilt_event ) {
             tilt_event = 0;
