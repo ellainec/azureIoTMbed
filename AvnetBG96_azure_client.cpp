@@ -16,11 +16,9 @@
 #include "azure_c_shared_utility/agenttime.h"
 #include "jsondecoder.h"
 #include "button.hpp"
-#include "azure_c_shared_utility/threadapi.h"
 
 #define APP_VERSION "1.2"
 #define IOT_AGENT_OK CODEFIRST_OK
-#define MBED_THREAD_STATS_ENABLED
 
 #include "azure_certs.h"
 
@@ -67,8 +65,20 @@ static LSM6DSLSensor  *acc_gyro;
 static LPS22HBSensor  *pressure;
 static LSM303AGRMagSensor *mag;
 
-
+//device 1
 static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
+
+//device 2
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=837a1bc1-ce82-41d0-b5b3-9327f345faf8;SharedAccessKey=sbNeGs4Z423GR3WFgtQfBeV7PnDithMOqGPU3K1CtIY=";
+
+//device 3
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=087ceb74-be24-4b4a-971c-afab67987a11;SharedAccessKey=wGW4NiY5cJilX5o3BWe1RiLN3wyqhj2La5ccSsWK4M0=";
+
+//device 4
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=a43789a5-177c-45e1-aa0f-2f5782e48be3;SharedAccessKey=wx7Xi5OcwtBNlc1+EAE1CNVVsKgX0GQEqUcNfp/U2Aw=";
+
+//device 5
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=92943ebe-deb0-40a7-9cd9-f039beb120ba;SharedAccessKey=YpBVkVQ+VLTtcROOrKbStjwl6tDDYdcQJEZZhETWQ3w=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
@@ -104,8 +114,6 @@ void mems_init(void)
 //
 // The main routine simply prints a banner, initializes the system
 // starts the worker threads and waits for a termination (join)
-
-static size_t g_message_count_send_confirmations = 0;
 
 int main(void)
 {
@@ -166,7 +174,6 @@ char* makeMessage(IoTDevice* iotDev)
     strftime(buffer,80,"%a %F %X",ptm);
     iotDev->TOD = buffer;
     int c = (strstr(buffer,":")-buffer) - 2;
-
     printf("Send IoTHubClient Message@%s - ",&buffer[c]);
     snprintf(ptr, msg_size, IOTDEVICE_MSG_FORMAT,
                             iotDev->ObjectName,
@@ -185,13 +192,13 @@ char* makeMessage(IoTDevice* iotDev)
     return ptr;
 }
 
-static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
-{
-    //userContextCallback;
-    // When a message is sent this callback will get envoked
-    g_message_count_send_confirmations++;
-    printf("Confirmation callback received for message %lu with result %s\r\n", (unsigned long)g_message_count_send_confirmations, ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
-}
+// static void send_confirm_callback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
+// {
+//     //userContextCallback;
+//     // When a message is sent this callback will get envoked
+//     g_message_count_send_confirmations++;
+//     printf("Confirmation callback received for message %lu with result %s\r\n", (unsigned long)g_message_count_send_confirmations, ENUM_TO_STRING(IOTHUB_CLIENT_CONFIRMATION_RESULT, result));
+// }
 
 void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_t size)
 {
@@ -200,7 +207,7 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
         printf("unable to create a new IoTHubMessage\r\n");
         return;
         }
-    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, send_confirm_callback, NULL) != IOTHUB_CLIENT_OK)
+    if (IoTHubClient_LL_SendEventAsync(iotHubClientHandle, messageHandle, NULL, NULL) != IOTHUB_CLIENT_OK)
         printf("FAILED to send! [RSSI=%d]\n", platform_RSSI());
     else
         printf("OK. [RSSI=%d]\n",platform_RSSI());
@@ -326,14 +333,13 @@ void azure_task(void)
         hum_temp->get_humidity(&ghumid);             // get Humidity
         pressure->get_pressure(&gpress);             // get pressure
         mag->get_m_axes(magData);
-        printf("%d-%d-%d\n", magData[0], magData[1], magData[2]);
 
         iotDev->Temperature = CTOF(gtemp);
         iotDev->Humidity    = (int)ghumid;
         iotDev->Pressure    = (int)gpress;
-        iotDev->mag1        = magData[0];
-        iotDev->mag2        = magData[1];
-        iotDev->mag3        = magData[2];
+        iotDev->mag1        = (int)magData[0];
+        iotDev->mag2        = (int)magData[1];
+        iotDev->mag3        = (int)magData[2];
 
         if( tilt_event ) {
             tilt_event = 0;
@@ -350,14 +356,13 @@ void azure_task(void)
 
         /* schedule IoTHubClient to send events/receive commands */
 
-        IOTHUB_CLIENT_STATUS status;
+        IoTHubClient_LL_DoWork(iotHubClientHandle);
 
-        while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
-        {
-        	printf("busy \n");
-            IoTHubClient_LL_DoWork(iotHubClientHandle);
-            ThreadAPI_Sleep(100); // @suppress("Invalid arguments")
-        }
+        // while ((IoTHubClient_LL_GetSendStatus(iotHubClientHandle, &status) == IOTHUB_CLIENT_OK) && (status == IOTHUB_CLIENT_SEND_STATUS_BUSY))
+        // {
+        //     IoTHubClient_LL_DoWork(iotHubClientHandle);
+        //     ThreadAPI_Sleep(100); // @suppress("Invalid arguments")
+        // }
 
 #if defined(MBED_HEAP_STATS_ENABLED)
         mbed_stats_heap_t heap_stats; //jmf
@@ -395,13 +400,8 @@ void azure_task(void)
                 printf("\n");
                 }
 #endif
-        printf("going to sleep \n");
-        ThisThread::sleep_for(5000);  //in msec // @suppress("Function cannot be resolved")
+        ThisThread::sleep_for(80000);  //in msec // @suppress("Function cannot be resolved")
 
-
-//        ThisThread::sleep_for(60000); // @suppress("Function cannot be resolved")
-//        printf("going to sleep \n");
-//        ThisThread::sleep_for(60000); // @suppress("Function cannot be resolved")
         }
     free(iotDev);
     IoTHubClient_LL_Destroy(iotHubClientHandle);
