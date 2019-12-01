@@ -1,0 +1,1 @@
+Python -m mbed compile -m NUCLEO_L496ZG -t GCC_ARM --profile toolchain_release.json --flash
