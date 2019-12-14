@@ -66,8 +66,9 @@ static LPS22HBSensor  *pressure;
 static LSM303AGRMagSensor *mag;
 
 //device 1
-static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=35f3adb7-d7f6-4efb-9da3-b1db552c44a7;SharedAccessKey=bCwmvrv+hOHJn7iYFzpnPadK5PEbRslmpY6EEWDEDSI=";
 
+static char* deviceName = "LTE-M 3";
 //device 2
 //static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=837a1bc1-ce82-41d0-b5b3-9327f345faf8;SharedAccessKey=sbNeGs4Z423GR3WFgtQfBeV7PnDithMOqGPU3K1CtIY=";
 
@@ -79,6 +80,15 @@ static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a3
 
 //device 5
 //static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=92943ebe-deb0-40a7-9cd9-f039beb120ba;SharedAccessKey=YpBVkVQ+VLTtcROOrKbStjwl6tDDYdcQJEZZhETWQ3w=";
+
+//lte 1
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=7c6ede62-c63a-409f-9179-f08223000872;SharedAccessKey=K8jecqvN5Tz7TN8yGyPPNU4eLkr50Itn26fH8kw52pc=";
+
+//lte 2
+//static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=fd044ec6-b886-48d2-baf8-ab07b807afa1;SharedAccessKey=QpOELRF1o/rNWdOzMYTyDE7QIrK7uANCxWjxW/GFaho=";
+
+//lte 3
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=2457a99b-6ebd-4e8c-945f-6734e46331ca;SharedAccessKey=ZW21oZyo2WzFAxdFTVPsYIT9iVVXxtqpep8xzQ3s48g=";
 
 // to report F uncomment this #define CTOF(x)         (((double)(x)*9/5)+32)
 #define CTOF(x)         (x)
@@ -313,7 +323,7 @@ void azure_task(void)
     iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
     iotDev->ObjectType      = (char*)"SensorData";
     iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"testing";
+    iotDev->ReportingDevice = deviceName;
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
     iotDev->mag1            = 0;
@@ -400,7 +410,7 @@ void azure_task(void)
                 printf("\n");
                 }
 #endif
-        ThisThread::sleep_for(80000);  //in msec // @suppress("Function cannot be resolved")
+        ThisThread::sleep_for(30000);  //in msec // @suppress("Function cannot be resolved")
 
         }
     free(iotDev);
