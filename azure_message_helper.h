@@ -11,14 +11,14 @@
      "\"ObjectType\":\"%s\","      \
      "\"Version\":\"%s\","         \
      "\"ReportingDevice\":\"%s\"," \
-     "\"Latitude\":\"%6.3f\","     \
-     "\"Longitude\":\"%6.3f\","    \
-     "\"GPSTime\":\"%6.0f\","      \
-     "\"GPSDate\":\"%s\","         \
+     "\"mag1\":\"%d\","            \
+     "\"mag2\":\"%d\","            \
+     "\"mag3\":\"%d\","            \
      "\"Temperature\":\"%.02f\","  \
      "\"Humidity\":\"%d\","        \
      "\"Pressure\":\"%d\","        \
      "\"Tilt\":\"%d\","            \
+     "\"ButtonPress\":\"%d\","     \
      "\"TOD\":\"%s UTC\""          \
    "}"
 
@@ -28,16 +28,16 @@ typedef struct IoTDevice_t {
     char* ObjectType;
     char* Version;
     char* ReportingDevice;
-    float lat;
-    float lon;
-    float gpstime;
-    char  gpsdate[7];
+    int mag1;
+    int mag2;
+    int mag3;
     float Temperature;
     int   Humidity;
     int   Pressure;
     int   Tilt;
+    int   ButtonPress;
     char* TOD;
-    } IoTDevice;       
+    } IoTDevice;      
 
 void setUpIotStruct(IoTDevice* iotDev) {
     //
@@ -45,17 +45,17 @@ void setUpIotStruct(IoTDevice* iotDev) {
     //
     iotDev->ObjectName      = (char*)"Avnet NUCLEO-L496ZG+BG96 Azure IoT Client";
     iotDev->ObjectType      = (char*)"SensorData";
-    iotDev->Version         = (char*)APP_VERSION;
-    iotDev->ReportingDevice = (char*)"no_gps_5min";
+    iotDev->Version         = (char*)"1.2";
+    iotDev->ReportingDevice = (char*)"testing";
     iotDev->TOD             = (char*)"";
     iotDev->Temperature     = 0.0;
-    iotDev->lat             = 0.0;
-    iotDev->lon             = 0.0;
-    iotDev->gpstime         = 0.0;
+    iotDev->mag1            = 0;
+    iotDev->mag2            = 0;
+    iotDev->mag3            = 0;
     iotDev->Humidity        = 0;
     iotDev->Pressure        = 0;
     iotDev->Tilt            = 0x2;
-    memset(iotDev->gpsdate,0x00,7);
+    iotDev->ButtonPress     = 0;
 }
 
 void printStartMessage() {
@@ -90,25 +90,26 @@ char* makeMessage(IoTDevice* iotDev)
     char*       ptr      = (char*)malloc(msg_size);
     time_t      rawtime;
     struct tm   *ptm;
-  
+
     time(&rawtime);
     ptm = gmtime(&rawtime);
     strftime(buffer,80,"%a %F %X",ptm);
     iotDev->TOD = buffer;
     int c = (strstr(buffer,":")-buffer) - 2;
+    printf("Send IoTHubClient Message@%s - ",&buffer[c]);
     snprintf(ptr, msg_size, IOTDEVICE_MSG_FORMAT,
                             iotDev->ObjectName,
                             iotDev->ObjectType,
                             iotDev->Version,
                             iotDev->ReportingDevice,
-                            iotDev->lat,
-                            iotDev->lon,
-                            iotDev->gpstime,
-                            iotDev->gpsdate,
+                            iotDev->mag1,
+                            iotDev->mag2,
+                            iotDev->mag3,
                             iotDev->Temperature,
                             iotDev->Humidity,
                             iotDev->Pressure,
                             iotDev->Tilt,
+                            iotDev->ButtonPress,
                             iotDev->TOD);
     return ptr;
 }
