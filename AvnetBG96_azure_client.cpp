@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-//#define USE_MQTT
+#define USE_MQTT
 
 #include <stdlib.h>
 #include "mbed.h"
@@ -78,7 +78,7 @@ typedef struct IoTDevice_t {
   #define ENV_SENSOR "NO"
 #endif
 
-static const char* connectionString = "HostName=iotc-3ba337e8-74be-4fe6-8352-fa5b129733ae.azure-devices.net;DeviceId=579244a3-1b7c-43b9-94ea-0bd3bb96ebb0;SharedAccessKey=mrxTBlEKcnWlWtROvycCuw5Mbog2vi9jlQEliqpPNN8=";
+static const char* connectionString = "HostName=iotc-c522e121-b0fa-43a6-942f-4a32df173949.azure-devices.net;DeviceId=c358c52b-3667-464d-9ef4-ef44fdcaa62c;SharedAccessKey=qophJ7S8BiKqknD0j3XIvl6eKw1Cv6KMQDh4f4LDeBE=";
  
 static const char* deviceId         = "xxxx"; /*must match the one on connectionString*/
 
@@ -212,12 +212,12 @@ int main(void)
        return -1;
        }
 
-    printf("[ start GPS ] ");
-    gps.gpsPower(true);
-    printf("Successful.\r\n[get GPS loc] ");
-    fflush(stdout);
-    gps.gpsLocation(&gdata);
-    printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
+//    printf("[ start GPS ] ");
+//    gps.gpsPower(true);
+//    printf("Successful.\r\n[get GPS loc] ");
+//    fflush(stdout);
+//    gps.gpsLocation(&gdata);
+//    printf("Latitude = %6.3f Longitude = %6.3f date=%s, time=%6.0f\n\n",gdata.lat,gdata.lon,gdata.date,gdata.utc);
 
 #if MBED_CONF_APP_IKSVERSION == 2
   XNucleoIKS01A2 *mems_expansion_board = XNucleoIKS01A2::instance(I2C_SDA, I2C_SCL, D4, D5);
@@ -302,7 +302,11 @@ void sendMessage(IOTHUB_CLIENT_LL_HANDLE iotHubClientHandle, char* buffer, size_
 
     IoTHubMessage_Destroy(messageHandle);
 }
-
+void connection_status_callback( IOTHUB_CLIENT_CONNECTION_STATUS result, IOTHUB_CLIENT_CONNECTION_STATUS_REASON reason,
+  void * userContextCallback
+) {
+    printf("callback!");
+}
 IOTHUBMESSAGE_DISPOSITION_RESULT receiveMessageCallback(
     IOTHUB_MESSAGE_HANDLE message, 
     void *userContextCallback)
@@ -397,8 +401,8 @@ void azure_task(void)
         }
 
     // set C2D and device method callback
-    IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
-
+    //IoTHubClient_LL_SetMessageCallback(iotHubClientHandle, receiveMessageCallback, NULL);
+    IoTHubClient_LL_SetConnectionStatusCallback(iotHubClientHandle, connection_status_callback, NULL);
     //
     // setup the iotDev struction contents...
     //
@@ -425,11 +429,11 @@ void azure_task(void)
         char*  msg;
         size_t msgSize;
 
-        gps.gpsLocation(&gdata);
-        iotDev->lat = gdata.lat;
-        iotDev->lon = gdata.lon;
-        iotDev->gpstime = gdata.utc;
-        memcpy(iotDev->gpsdate, gdata.date, 7);
+//        gps.gpsLocation(&gdata);
+//        iotDev->lat = gdata.lat;
+//        iotDev->lon = gdata.lon;
+//        iotDev->gpstime = gdata.utc;
+//        memcpy(iotDev->gpsdate, gdata.date, 7);
 
 #if MBED_CONF_APP_IKSVERSION == 2
         hum_temp->get_temperature(&gtemp);           // get Temp
